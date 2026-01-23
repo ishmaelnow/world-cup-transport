@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Edge Function</title>
+</head>
+<body>
+    <h1>Test Edge Function Connection</h1>
+    <button onclick="testFunction()">Test add-payment-method Function</button>
+    <div id="result"></div>
+
+    <script>
+        async function testFunction() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Testing...';
+
+            const supabaseUrl = 'https://zademtsktedahwgehttw.supabase.co';
+            
+            try {
+                // Test 1: OPTIONS request (CORS preflight)
+                console.log('Test 1: Testing OPTIONS request...');
+                const optionsResponse = await fetch(`${supabaseUrl}/functions/v1/add-payment-method`, {
+                    method: 'OPTIONS',
+                });
+                
+                console.log('OPTIONS Status:', optionsResponse.status);
+                
+                if (optionsResponse.status === 200) {
+                    resultDiv.innerHTML += '<p style="color: green;">✅ Function exists! OPTIONS request successful.</p>';
+                } else {
+                    resultDiv.innerHTML += `<p style="color: red;">❌ Function returned status: ${optionsResponse.status}</p>`;
+                }
+
+                // Test 2: POST request (without auth - should fail but show function exists)
+                console.log('Test 2: Testing POST request...');
+                const postResponse = await fetch(`${supabaseUrl}/functions/v1/add-payment-method`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ userId: 'test' }),
+                });
+                
+                const postData = await postResponse.json().catch(() => ({ error: 'Could not parse response' }));
+                console.log('POST Response:', postData);
+                
+                if (postResponse.status === 401 || postResponse.status === 400) {
+                    resultDiv.innerHTML += '<p style="color: green;">✅ Function exists! (Auth error expected without token)</p>';
+                } else if (postResponse.status === 404) {
+                    resultDiv.innerHTML += '<p style="color: red;">❌ Function NOT FOUND (404). Function not deployed or wrong name.</p>';
+                } else {
+                    resultDiv.innerHTML += `<p>POST Status: ${postResponse.status}</p>`;
+                    resultDiv.innerHTML += `<p>Response: ${JSON.stringify(postData)}</p>`;
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+                resultDiv.innerHTML += `<p style="color: red;">❌ Error: ${error.message}</p>`;
+                resultDiv.innerHTML += '<p>This usually means:</p>';
+                resultDiv.innerHTML += '<ul>';
+                resultDiv.innerHTML += '<li>Function not deployed</li>';
+                resultDiv.innerHTML += '<li>Wrong function name</li>';
+                resultDiv.innerHTML += '<li>Network/CORS issue</li>';
+                resultDiv.innerHTML += '</ul>';
+            }
+        }
+    </script>
+</body>
+</html>
+

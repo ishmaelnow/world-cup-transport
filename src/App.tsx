@@ -1,0 +1,175 @@
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AuthPage } from './pages/AuthPage';
+import { RiderDashboard } from './pages/rider/RiderDashboard';
+import { ActiveRide } from './pages/rider/ActiveRide';
+import { PaymentMethods } from './pages/rider/PaymentMethods';
+import { RideHistory } from './pages/rider/RideHistory';
+import { DriverOnboarding } from './pages/driver/DriverOnboarding';
+import { DriverDashboard } from './pages/driver/DriverDashboard';
+import { ActiveDriverRide } from './pages/driver/ActiveDriverRide';
+import { DriverEarnings } from './pages/driver/DriverEarnings';
+import { AdminDashboard } from './pages/admin/AdminDashboard';
+
+function ProtectedRoute({
+  children,
+  requiredRole,
+}: {
+  children: React.ReactNode;
+  requiredRole?: string;
+}) {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-gray-600">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/" replace />;
+  }
+
+  if (requiredRole) {
+    if (requiredRole === 'rider' && (user.role === 'rider' || user.role === 'driver')) {
+      return <>{children}</>;
+    }
+
+    if (requiredRole === 'driver' && user.role === 'driver') {
+      return <>{children}</>;
+    }
+
+    if (requiredRole === 'admin' && user.role === 'admin') {
+      return <>{children}</>;
+    }
+
+    return <Navigate to={user.role === 'admin' ? '/admin' : '/rider'} replace />;
+  }
+
+  return <>{children}</>;
+}
+
+function AppRoutes() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-gray-600">Loading...</div>
+      </div>
+    );
+  }
+
+  return (
+    <Routes>
+      <Route
+        path="/"
+        element={
+          user ? (
+            <Navigate
+              to={
+                user.role === 'rider'
+                  ? '/rider'
+                  : user.role === 'driver'
+                  ? '/driver'
+                  : '/admin'
+              }
+              replace
+            />
+          ) : (
+            <AuthPage />
+          )
+        }
+      />
+
+      <Route
+        path="/rider"
+        element={
+          <ProtectedRoute requiredRole="rider">
+            <RiderDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/rider/ride/:rideId"
+        element={
+          <ProtectedRoute requiredRole="rider">
+            <ActiveRide />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/rider/payment-methods"
+        element={
+          <ProtectedRoute requiredRole="rider">
+            <PaymentMethods />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/rider/history"
+        element={
+          <ProtectedRoute requiredRole="rider">
+            <RideHistory />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/driver/onboarding"
+        element={
+          <ProtectedRoute>
+            <DriverOnboarding />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/driver"
+        element={
+          <ProtectedRoute requiredRole="driver">
+            <DriverDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/driver/ride/:rideId"
+        element={
+          <ProtectedRoute requiredRole="driver">
+            <ActiveDriverRide />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/driver/earnings"
+        element={
+          <ProtectedRoute requiredRole="driver">
+            <DriverEarnings />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute requiredRole="admin">
+            <AdminDashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </BrowserRouter>
+  );
+}
