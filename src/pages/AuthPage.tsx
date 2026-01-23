@@ -102,14 +102,6 @@ export function AuthPage() {
                     >
                       Driver
                     </Button>
-                    <Button
-                      type="button"
-                      variant={role === 'admin' ? 'primary' : 'secondary'}
-                      onClick={() => setRole('admin')}
-                      fullWidth
-                    >
-                      Admin
-                    </Button>
                   </div>
                 </div>
               </>

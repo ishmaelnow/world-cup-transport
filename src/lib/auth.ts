@@ -10,6 +10,11 @@ export interface AuthUser {
 }
 
 export async function signUp(email: string, password: string, role: UserRole, fullName?: string) {
+  // SECURITY: Prevent admin signup - admins must be created manually
+  if (role === 'admin') {
+    throw new Error('Admin accounts cannot be created through signup. Please contact support.');
+  }
+
   // Pass role and full_name in metadata so trigger can use it
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
@@ -25,12 +30,14 @@ export async function signUp(email: string, password: string, role: UserRole, fu
   if (authError) throw authError;
   if (!authData.user) throw new Error('User creation failed');
 
-  // Use database function to create profile (bypasses RLS)
-  const { error: profileError } = await supabase.rpc('create_user_profile', {
-    user_id: authData.user.id,
-    user_role: role,
-    user_full_name: fullName || null,
-  });
+  // Create profile directly (RLS policy allows users to insert own profile)
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .insert({
+      id: authData.user.id,
+      role: role, // Already validated above - cannot be 'admin'
+      full_name: fullName || null,
+    });
 
   if (profileError) {
     console.error('Failed to create profile:', profileError);
