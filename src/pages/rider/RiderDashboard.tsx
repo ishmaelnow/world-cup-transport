@@ -152,25 +152,9 @@ export function RiderDashboard() {
         throw new Error('Failed to create payment authorization');
       }
 
-      // Step 4: Match driver
-      fetch(`${supabaseUrl}/functions/v1/match-driver`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${supabaseAnonKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ rideId: data.id }),
-      })
-        .then(res => res.json())
-        .then(result => {
-          console.log('Match-driver result:', result);
-          if (!result.success && !result.alreadyAssigned) {
-            console.warn('No driver found:', result.message);
-          }
-        })
-        .catch(err => {
-          console.error('Matching error:', err);
-        });
+      // Step 4: Ride is now available for drivers to accept manually
+      // Drivers will see it in their "Available Rides" section
+      // No auto-assignment - drivers choose which rides to accept
 
       navigate(`/rider/ride/${data.id}`);
     } catch (error) {
