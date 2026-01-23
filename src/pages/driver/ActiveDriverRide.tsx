@@ -110,6 +110,9 @@ export function ActiveDriverRide() {
       } else if (newStatus === 'completed') {
         updates.completed_at = new Date().toISOString();
         updates.fare_final = ride.fare_estimate;
+      } else if (newStatus === 'canceled') {
+        updates.canceled_at = new Date().toISOString();
+        updates.canceled_by = 'driver';
       }
 
       const { error } = await supabase
@@ -143,21 +146,24 @@ export function ActiveDriverRide() {
         const { data: profile } = await supabase
           .from('driver_profiles')
           .select('total_trips')
-          .eq('id', ride.driver_id!)
+          .eq('user_id', user?.id)
           .maybeSingle();
 
         if (profile) {
           await supabase
             .from('driver_profiles')
-            .update({ total_trips: profile.total_trips + 1 })
-            .eq('id', ride.driver_id!);
+            .update({ total_trips: (profile.total_trips || 0) + 1 })
+            .eq('user_id', user?.id);
         }
 
         setShowRatingModal(true);
+      } else if (newStatus === 'canceled') {
+        // Navigate back to driver dashboard after canceling
+        navigate('/driver');
       }
     } catch (error) {
       console.error('Error updating ride status:', error);
-      alert('Failed to update ride status');
+      alert('Failed to update ride status: ' + (error as Error).message);
     } finally {
       setUpdating(false);
     }
@@ -343,8 +349,26 @@ export function ActiveDriverRide() {
           </Button>
         )}
 
+        {/* Cancel Trip Button - Available at any stage */}
+        {ride.status !== 'completed' && ride.status !== 'canceled' && (
+          <Button
+            variant="danger"
+            onClick={() => {
+              if (confirm('Are you sure you want to cancel this trip? This action cannot be undone.')) {
+                updateRideStatus('canceled');
+              }
+            }}
+            disabled={updating}
+            fullWidth
+            size="sm"
+            className="mt-2"
+          >
+            Cancel Trip
+          </Button>
+        )}
+
         {/* Test/Dev: Quick Complete Button - Remove in production */}
-        {ride.status !== 'completed' && (
+        {ride.status !== 'completed' && ride.status !== 'canceled' && (
           <Button
             variant="secondary"
             onClick={() => {
