@@ -324,15 +324,6 @@ export function ActiveRide() {
       effectiveStatus 
     });
   }
-  
-  console.log('Rider page status check:', {
-    rideId: ride.id,
-    driver_id: ride.driver_id,
-    hasDriver,
-    db_status: ride.status,
-    effectiveStatus,
-    statusInfo_title: statusInfo.title
-  });
 
   const statusInfo = {
     matching: {
@@ -361,6 +352,16 @@ export function ActiveRide() {
       color: 'blue',
     },
   }[effectiveStatus] || { title: '', description: '', color: 'gray' };
+  
+  // Debug logging after statusInfo is defined
+  console.log('Rider page status check:', {
+    rideId: ride.id,
+    driver_id: ride.driver_id,
+    hasDriver,
+    db_status: ride.status,
+    effectiveStatus,
+    statusInfo_title: statusInfo.title
+  });
 
   const getStatusBgClass = () => {
     if (statusInfo.color === 'blue') return 'bg-blue-100';
