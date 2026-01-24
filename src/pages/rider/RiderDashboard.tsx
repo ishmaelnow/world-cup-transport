@@ -262,24 +262,21 @@ export function RiderDashboard() {
             />
 
             {/* Vehicle Type Selection */}
-            {import.meta.env.VITE_ENABLE_VEHICLE_TYPES !== 'false' && (
-              <Select
-                label="Vehicle Type (Optional)"
-                value={vehicleType || ''}
-                onChange={(e) => setVehicleType(e.target.value as VehicleType || null)}
-                options={[
-                  { value: '', label: 'Any Vehicle' },
-                  { value: 'sedan', label: 'Sedan' },
-                  { value: 'standard', label: 'Standard' },
-                  { value: 'suv', label: 'SUV' },
-                ]}
-              />
-            )}
+            <Select
+              label="Vehicle Type (Optional)"
+              value={vehicleType || ''}
+              onChange={(e) => setVehicleType(e.target.value as VehicleType || null)}
+              options={[
+                { value: '', label: 'Any Vehicle' },
+                { value: 'sedan', label: 'Sedan' },
+                { value: 'standard', label: 'Standard' },
+                { value: 'suv', label: 'SUV' },
+              ]}
+            />
 
             {/* Scheduled Ride Toggle */}
-            {import.meta.env.VITE_ENABLE_SCHEDULED_RIDES !== 'false' && (
-              <>
-                <div className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg">
+            <>
+              <div className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg">
                   <input
                     type="checkbox"
                     id="scheduled-ride"
@@ -334,8 +331,7 @@ export function RiderDashboard() {
                     )}
                   </div>
                 )}
-              </>
-            )}
+            </>
 
             {fareEstimate && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
