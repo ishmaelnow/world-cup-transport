@@ -32,15 +32,10 @@ CREATE POLICY "Drivers can accept available rides"
     )
   )
   WITH CHECK (
-    -- After update, verify:
-    -- 1. Still a driver
-    (SELECT role FROM profiles WHERE id = auth.uid()) = 'driver'
-    -- 2. driver_id is set to this driver's profile ID
-    AND driver_id IN (
+    -- After update, verify driver_id matches this driver's profile
+    driver_id IN (
       SELECT id FROM driver_profiles WHERE user_id = auth.uid()
     )
-    -- 3. Status is accepted
-    AND status = 'accepted'
   );
 
 -- Verify the policy was created
