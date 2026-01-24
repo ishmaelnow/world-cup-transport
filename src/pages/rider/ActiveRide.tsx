@@ -312,19 +312,27 @@ export function ActiveRide() {
 
   // Override status display if driver is assigned but status hasn't updated yet
   // Check driver_id first - if it exists, driver is assigned regardless of status
-  const hasDriver = !!ride.driver_id;
-  const effectiveStatus = hasDriver && (ride.status === 'matching' || ride.status === 'requested')
-    ? 'accepted'
-    : ride.status;
+  const hasDriver = ride.driver_id != null && ride.driver_id !== '';
   
-  // Debug logging (remove in production if needed)
+  // If driver_id exists, force status to 'accepted' or higher, even if DB says 'matching'/'requested'
+  let effectiveStatus = ride.status;
   if (hasDriver && (ride.status === 'matching' || ride.status === 'requested')) {
-    console.log('Driver assigned but status not updated:', { 
+    effectiveStatus = 'accepted';
+    console.log('✅ Driver assigned - overriding status:', { 
       driver_id: ride.driver_id, 
-      status: ride.status, 
+      db_status: ride.status, 
       effectiveStatus 
     });
   }
+  
+  console.log('Rider page status check:', {
+    rideId: ride.id,
+    driver_id: ride.driver_id,
+    hasDriver,
+    db_status: ride.status,
+    effectiveStatus,
+    statusInfo_title: statusInfo.title
+  });
 
   const statusInfo = {
     matching: {
