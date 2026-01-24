@@ -133,8 +133,10 @@ export function ActiveRide() {
     }
   }, [ride?.driver_id, ride?.id]);
 
-  const loadRide = async () => {
+  const loadRide = useCallback(async (showLoading = true) => {
     if (!rideId) return;
+
+    if (showLoading) setLoading(true);
 
     const { data, error } = await supabase
       .from('rides')
@@ -148,23 +150,36 @@ export function ActiveRide() {
       return;
     }
 
+    const previousDriverId = rideRef.current?.driver_id;
+    
+    // Update both state and ref
     setRide(data);
-    console.log('Ride loaded:', { 
+    rideRef.current = data;
+    
+    console.log('🔄 Ride loaded:', { 
       rideId: data.id, 
       driver_id: data.driver_id, 
-      status: data.status 
+      status: data.status,
+      previousDriverId,
+      driverChanged: data.driver_id !== previousDriverId
     });
     
     if (data.driver_id) {
       // Load driver and show chat
-      console.log('Driver ID found, loading driver profile:', data.driver_id);
-      await loadDriver(data.driver_id);
-      setShowChat(true); // Show chat when driver is loaded
+      console.log('✅ Driver ID found, loading driver profile:', data.driver_id);
+      try {
+        await loadDriver(data.driver_id);
+        setShowChat(true); // Show chat when driver is loaded
+      } catch (err) {
+        console.error('❌ Error loading driver:', err);
+      }
     } else {
       // No driver assigned yet
-      console.log('No driver assigned yet');
+      console.log('⏳ No driver assigned yet');
       setShowChat(false);
-      setDriver(null);
+      if (previousDriverId) {
+        setDriver(null);
+      }
     }
 
     if (data.status === 'completed' && user) {
@@ -181,8 +196,8 @@ export function ActiveRide() {
       }
     }
 
-    setLoading(false);
-  };
+    if (showLoading) setLoading(false);
+  }, [rideId, navigate, user]);
 
   const loadDriver = async (driverId: string) => {
     const { data } = await supabase
