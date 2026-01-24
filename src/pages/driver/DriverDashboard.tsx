@@ -174,26 +174,68 @@ export function DriverDashboard() {
   };
 
   const handleAcceptRide = async (rideId: string) => {
-    if (!profile) return;
+    if (!profile) {
+      console.error('❌ No profile loaded');
+      alert('Driver profile not loaded. Please refresh the page.');
+      return;
+    }
+
+    console.log('🚗 Attempting to accept ride:', {
+      rideId,
+      driverProfileId: profile.id,
+      driverUserId: profile.user_id,
+      isAvailable: profile.is_available,
+      isActive: profile.is_active
+    });
 
     try {
-      const { data: ride } = await supabase
+      // First, get the current ride state
+      const { data: ride, error: fetchError } = await supabase
         .from('rides')
         .select('*')
         .eq('id', rideId)
         .maybeSingle();
 
-      if (!ride || (ride.status !== 'matching' && ride.status !== 'requested')) {
+      if (fetchError) {
+        console.error('❌ Error fetching ride:', fetchError);
+        alert('Error loading ride details. Please try again.');
+        return;
+      }
+
+      if (!ride) {
+        console.error('❌ Ride not found:', rideId);
+        alert('This ride is no longer available');
+        loadAvailableRides();
+        return;
+      }
+
+      console.log('📋 Current ride state:', {
+        id: ride.id,
+        status: ride.status,
+        driver_id: ride.driver_id,
+        rider_id: ride.rider_id
+      });
+
+      if (ride.status !== 'matching' && ride.status !== 'requested') {
+        console.error('❌ Ride status is not matching/requested:', ride.status);
         alert('This ride is no longer available');
         loadAvailableRides();
         return;
       }
 
       if (ride.driver_id && ride.driver_id !== profile.id) {
+        console.error('❌ Ride already has driver:', ride.driver_id, 'vs', profile.id);
         alert('This ride has been accepted by another driver');
         loadAvailableRides();
         return;
       }
+
+      // Attempt the update
+      console.log('🔄 Updating ride with:', {
+        driver_id: profile.id,
+        status: 'accepted',
+        rideId
+      });
 
       const { data, error } = await supabase
         .from('rides')
@@ -203,17 +245,39 @@ export function DriverDashboard() {
           accepted_at: new Date().toISOString(),
         })
         .eq('id', rideId)
-        .in('status', ['matching', 'requested']) // More flexible: accept if status is matching OR requested
-        .is('driver_id', null) // CRITICAL: Only accept if no driver assigned yet
-        .select(); // Return updated row to verify
+        .in('status', ['matching', 'requested'])
+        .is('driver_id', null)
+        .select();
 
       if (error) {
-        console.error('❌ Error accepting ride:', error);
-        throw error;
+        console.error('❌ Supabase error accepting ride:', error);
+        console.error('Error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        alert(`Error accepting ride: ${error.message}`);
+        loadAvailableRides();
+        return;
       }
 
       if (!data || data.length === 0) {
-        console.error('❌ No rows updated - ride may have been accepted by another driver or status changed');
+        console.error('❌ No rows updated - conditions not met');
+        console.error('This means either:');
+        console.error('  1. Status changed between fetch and update');
+        console.error('  2. driver_id was set between fetch and update');
+        console.error('  3. RLS policy is blocking the update');
+        
+        // Try to fetch again to see what changed
+        const { data: updatedRide } = await supabase
+          .from('rides')
+          .select('*')
+          .eq('id', rideId)
+          .maybeSingle();
+        
+        console.error('Current ride state:', updatedRide);
+        
         alert('Failed to accept ride. The ride may have been accepted by another driver or is no longer available.');
         loadAvailableRides();
         return;
@@ -221,9 +285,10 @@ export function DriverDashboard() {
 
       console.log('✅ Ride accepted successfully:', data[0]);
       navigate(`/driver/ride/${rideId}`);
-    } catch (error) {
-      console.error('Error accepting ride:', error);
-      alert('Failed to accept ride. The ride may have been accepted by another driver.');
+    } catch (error: any) {
+      console.error('❌ Exception accepting ride:', error);
+      console.error('Error stack:', error.stack);
+      alert(`Failed to accept ride: ${error.message || 'Unknown error'}`);
       loadAvailableRides();
     }
   };
