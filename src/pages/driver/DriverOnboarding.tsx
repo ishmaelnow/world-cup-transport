@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { Layout } from '../../components/Layout';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
+import { Select } from '../../components/Select';
 import { Card } from '../../components/Card';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { Database } from '../../lib/database.types';
+import { Database, VehicleType } from '../../lib/database.types';
 import { Clock, CheckCircle, XCircle } from 'lucide-react';
 
 type ApplicationStatus = Database['public']['Tables']['driver_applications']['Row'];
@@ -25,6 +26,7 @@ export function DriverOnboarding() {
     license_plate: '',
     drivers_license: '',
     insurance_policy: '',
+    vehicle_type: '' as VehicleType | '',
   });
 
   useEffect(() => {
@@ -120,6 +122,7 @@ export function DriverOnboarding() {
         license_plate: formData.license_plate,
         drivers_license: formData.drivers_license,
         insurance_policy: formData.insurance_policy,
+        vehicle_type: formData.vehicle_type || null,
       });
 
       if (error) throw error;
@@ -286,6 +289,19 @@ export function DriverOnboarding() {
                 required
               />
             </div>
+
+            <Select
+              label="Vehicle Type"
+              value={formData.vehicle_type}
+              onChange={(e) => setFormData({ ...formData, vehicle_type: e.target.value as VehicleType | '' })}
+              options={[
+                { value: '', label: 'Select Vehicle Type' },
+                { value: 'sedan', label: 'Sedan' },
+                { value: 'standard', label: 'Standard' },
+                { value: 'suv', label: 'SUV' },
+              ]}
+              required
+            />
 
             <Input
               label="License Plate"

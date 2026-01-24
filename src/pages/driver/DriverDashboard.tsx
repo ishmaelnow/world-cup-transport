@@ -7,7 +7,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { formatCurrency } from '../../lib/fare';
 import type { Database } from '../../lib/database.types';
-import { Power, MapPin, DollarSign, TrendingUp } from 'lucide-react';
+import { Power, MapPin, DollarSign, TrendingUp, Calendar, Clock, Car } from 'lucide-react';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 type DriverProfile = Database['public']['Tables']['driver_profiles']['Row'];
@@ -71,11 +71,22 @@ export function DriverDashboard() {
   };
 
   const loadAvailableRides = async () => {
-    const { data } = await supabase
+    if (!profile) return;
+
+    let query = supabase
       .from('rides')
       .select('*')
       .in('status', ['matching', 'requested'])
-      .is('driver_id', null) // CRITICAL: Only show rides without a driver
+      .is('driver_id', null); // CRITICAL: Only show rides without a driver
+
+    // Filter by vehicle type if driver has one set and ride requests a specific type
+    // If ride has no vehicle_type preference, show it to all drivers
+    // If ride has vehicle_type preference, only show to matching drivers
+    if (profile.vehicle_type) {
+      query = query.or(`vehicle_type.is.null,vehicle_type.eq.${profile.vehicle_type}`);
+    }
+
+    const { data } = await query
       .order('requested_at', { ascending: true })
       .limit(5);
 
@@ -95,8 +106,15 @@ export function DriverDashboard() {
         (payload) => {
           const newRide = payload.new as Ride;
           // Only add if status is matching/requested AND no driver assigned
+          // AND vehicle type matches (if ride has vehicle_type preference)
           if ((newRide.status === 'matching' || newRide.status === 'requested') && !newRide.driver_id) {
-            setAvailableRides((prev) => [newRide, ...prev].slice(0, 5));
+            if (!profile) return;
+            
+            // If ride has no vehicle_type preference, show to all drivers
+            // If ride has vehicle_type preference, only show to matching drivers
+            if (!newRide.vehicle_type || !profile.vehicle_type || newRide.vehicle_type === profile.vehicle_type) {
+              setAvailableRides((prev) => [newRide, ...prev].slice(0, 5));
+            }
           }
         }
       )
@@ -416,6 +434,30 @@ export function DriverDashboard() {
                             <div className="font-medium text-sm">{ride.dropoff_address}</div>
                           </div>
                         </div>
+                        {/* Scheduled Time */}
+                        {ride.scheduled_at && (
+                          <div className="flex items-start space-x-2">
+                            <Calendar size={16} className="text-blue-600 mt-1" />
+                            <div className="flex-1">
+                              <div className="text-xs text-gray-500">Scheduled</div>
+                              <div className="font-medium text-sm">
+                                {new Date(ride.scheduled_at).toLocaleString()}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        {/* Vehicle Type Request */}
+                        {ride.vehicle_type && (
+                          <div className="flex items-start space-x-2">
+                            <Car size={16} className="text-purple-600 mt-1" />
+                            <div className="flex-1">
+                              <div className="text-xs text-gray-500">Vehicle Type</div>
+                              <div className="font-medium text-sm capitalize">
+                                {ride.vehicle_type}
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                       <div className="text-right ml-4">
                         <div className="text-lg font-bold text-green-600">
@@ -424,6 +466,12 @@ export function DriverDashboard() {
                         <div className="text-xs text-gray-500">
                           {ride.distance_miles.toFixed(1)} mi
                         </div>
+                        {ride.scheduled_at && (
+                          <div className="text-xs text-blue-600 mt-1 flex items-center justify-end gap-1">
+                            <Clock size={12} />
+                            Scheduled
+                          </div>
+                        )}
                       </div>
                     </div>
                     <Button

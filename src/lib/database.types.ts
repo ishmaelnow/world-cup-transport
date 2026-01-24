@@ -21,6 +21,7 @@ export type TransactionStatus = 'pending' | 'succeeded' | 'failed' | 'canceled';
 export type PayoutStatus = 'pending' | 'processing' | 'paid' | 'failed';
 export type UserRole = 'rider' | 'driver' | 'admin';
 export type ApplicationStatus = 'pending' | 'approved' | 'rejected';
+export type VehicleType = 'sedan' | 'standard' | 'suv';
 
 export interface Database {
   public: {
@@ -71,6 +72,7 @@ export interface Database {
           stripe_connect_account_id: string | null;
           connect_onboarding_completed: boolean;
           total_earnings: number;
+          vehicle_type: VehicleType | null;
           created_at: string;
           updated_at: string;
         };
@@ -115,6 +117,7 @@ export interface Database {
           stripe_connect_account_id?: string | null;
           connect_onboarding_completed?: boolean;
           total_earnings?: number;
+          vehicle_type?: VehicleType | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -146,6 +149,8 @@ export interface Database {
           payment_method_id: string | null;
           platform_fee: number;
           driver_earnings: number;
+          scheduled_at: string | null;
+          vehicle_type: VehicleType | null;
         };
         Insert: {
           id?: string;
@@ -173,6 +178,8 @@ export interface Database {
           payment_method_id?: string | null;
           platform_fee?: number;
           driver_earnings?: number;
+          scheduled_at?: string | null;
+          vehicle_type?: VehicleType | null;
         };
         Update: {
           id?: string;
@@ -200,6 +207,8 @@ export interface Database {
           payment_method_id?: string | null;
           platform_fee?: number;
           driver_earnings?: number;
+          scheduled_at?: string | null;
+          vehicle_type?: VehicleType | null;
         };
       };
       trip_locations: {
@@ -354,6 +363,7 @@ export interface Database {
           license_plate: string;
           drivers_license: string;
           insurance_policy: string;
+          vehicle_type: VehicleType | null;
           rejection_reason: string | null;
           reviewed_by: string | null;
           reviewed_at: string | null;
@@ -371,6 +381,7 @@ export interface Database {
           license_plate: string;
           drivers_license: string;
           insurance_policy: string;
+          vehicle_type?: VehicleType | null;
           rejection_reason?: string | null;
           reviewed_by?: string | null;
           reviewed_at?: string | null;
@@ -388,6 +399,7 @@ export interface Database {
           license_plate?: string;
           drivers_license?: string;
           insurance_policy?: string;
+          vehicle_type?: VehicleType | null;
           rejection_reason?: string | null;
           reviewed_by?: string | null;
           reviewed_at?: string | null;

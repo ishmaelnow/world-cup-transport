@@ -3,13 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { Layout } from '../../components/Layout';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
+import { Input } from '../../components/Input';
+import { Select } from '../../components/Select';
 import { LocationInput } from '../../components/LocationInput';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { calculateDistance, calculateFare, formatCurrency } from '../../lib/fare';
 import type { GeocodingResult } from '../../lib/geocoding';
-import type { Database } from '../../lib/database.types';
-import { MapPin, Navigation, Car, CreditCard, AlertCircle } from 'lucide-react';
+import type { Database, VehicleType } from '../../lib/database.types';
+import { MapPin, Navigation, Car, CreditCard, AlertCircle, Calendar, Clock } from 'lucide-react';
 
 type Ride = Database['public']['Tables']['rides']['Row'];
 type PaymentMethod = Database['public']['Tables']['payment_methods']['Row'];
@@ -25,6 +27,10 @@ export function RiderDashboard() {
   const [canApplyDriver, setCanApplyDriver] = useState(false);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
+  const [scheduledDate, setScheduledDate] = useState<string>('');
+  const [scheduledTime, setScheduledTime] = useState<string>('');
+  const [vehicleType, setVehicleType] = useState<VehicleType | null>(null);
+  const [isScheduled, setIsScheduled] = useState(false);
 
   useEffect(() => {
     checkActiveRide();
@@ -93,12 +99,34 @@ export function RiderDashboard() {
   const handleRequestRide = async () => {
     if (!user || !pickup || !dropoff) return;
 
+    // Validate scheduled ride if enabled
+    if (isScheduled) {
+      if (!scheduledDate || !scheduledTime) {
+        alert('Please select both date and time for scheduled ride');
+        return;
+      }
+      
+      // Combine date and time into ISO string
+      const scheduledDateTime = new Date(`${scheduledDate}T${scheduledTime}`);
+      const now = new Date();
+      
+      if (scheduledDateTime <= now) {
+        alert('Scheduled time must be in the future');
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       // Step 1: Create the ride first (no payment check)
       const distance = calculateDistance(pickup.lat, pickup.lng, dropoff.lat, dropoff.lng);
       const estimatedDuration = Math.ceil(distance * 2);
       const fare = calculateFare(distance, estimatedDuration);
+
+      // Combine date and time if scheduled
+      const scheduledAt = isScheduled && scheduledDate && scheduledTime
+        ? new Date(`${scheduledDate}T${scheduledTime}`).toISOString()
+        : null;
 
       const { data, error } = await supabase
         .from('rides')
@@ -114,6 +142,8 @@ export function RiderDashboard() {
           distance_miles: distance,
           duration_minutes: estimatedDuration,
           status: 'matching',
+          scheduled_at: scheduledAt,
+          vehicle_type: vehicleType,
         })
         .select()
         .single();
@@ -207,6 +237,80 @@ export function RiderDashboard() {
               placeholder="Enter destination"
             />
 
+            {/* Vehicle Type Selection */}
+            {import.meta.env.VITE_ENABLE_VEHICLE_TYPES !== 'false' && (
+              <Select
+                label="Vehicle Type (Optional)"
+                value={vehicleType || ''}
+                onChange={(e) => setVehicleType(e.target.value as VehicleType || null)}
+                options={[
+                  { value: '', label: 'Any Vehicle' },
+                  { value: 'sedan', label: 'Sedan' },
+                  { value: 'standard', label: 'Standard' },
+                  { value: 'suv', label: 'SUV' },
+                ]}
+              />
+            )}
+
+            {/* Scheduled Ride Toggle */}
+            {import.meta.env.VITE_ENABLE_SCHEDULED_RIDES !== 'false' && (
+              <>
+                <div className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg">
+                  <input
+                    type="checkbox"
+                    id="scheduled-ride"
+                    checked={isScheduled}
+                    onChange={(e) => {
+                      setIsScheduled(e.target.checked);
+                      if (!e.target.checked) {
+                        setScheduledDate('');
+                        setScheduledTime('');
+                      }
+                    }}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <label htmlFor="scheduled-ride" className="flex items-center space-x-2 cursor-pointer flex-1">
+                    <Calendar size={18} className="text-gray-600" />
+                    <span className="text-sm font-medium text-gray-700">Schedule for later</span>
+                  </label>
+                </div>
+
+                {/* Scheduled Date/Time Inputs */}
+                {isScheduled && (
+              <div className="grid grid-cols-2 gap-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    <Calendar size={14} className="inline mr-1" />
+                    Date
+                  </label>
+                  <Input
+                    type="date"
+                    value={scheduledDate}
+                    onChange={(e) => setScheduledDate(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
+                    required={isScheduled}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    <Clock size={14} className="inline mr-1" />
+                    Time
+                  </label>
+                  <Input
+                    type="time"
+                    value={scheduledTime}
+                    onChange={(e) => setScheduledTime(e.target.value)}
+                    required={isScheduled}
+                  />
+                </div>
+                {scheduledDate && scheduledTime && (
+                  <div className="col-span-2 text-xs text-gray-600 mt-2">
+                    Scheduled for: {new Date(`${scheduledDate}T${scheduledTime}`).toLocaleString()}
+                  </div>
+                )}
+              </div>
+            )}
+
             {fareEstimate && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div className="flex justify-between items-center">
@@ -223,11 +327,11 @@ export function RiderDashboard() {
 
             <Button
               onClick={handleRequestRide}
-              disabled={!pickup || !dropoff || loading}
+              disabled={!pickup || !dropoff || loading || (isScheduled && (!scheduledDate || !scheduledTime))}
               fullWidth
               size="lg"
             >
-              {loading ? 'Requesting...' : 'Request Ride'}
+              {loading ? 'Requesting...' : isScheduled ? 'Schedule Ride' : 'Request Ride'}
             </Button>
 
             {paymentMethods.length === 0 ? (
