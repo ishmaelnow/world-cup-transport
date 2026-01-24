@@ -33,13 +33,13 @@ export function ActiveRide() {
 
     loadRide();
 
-    // Set up polling as fallback for realtime (check every 3 seconds if no driver yet)
+    // Set up polling as fallback for realtime (check every 2 seconds if no driver yet)
     const pollInterval = setInterval(() => {
       if (ride && !ride.driver_id && (ride.status === 'matching' || ride.status === 'requested')) {
-        console.log('Polling for driver assignment...');
-        loadRide();
+        console.log('🔄 Polling for driver assignment...');
+        loadRide(false); // Don't show loading spinner on poll
       }
-    }, 3000);
+    }, 2000);
 
     const channel: RealtimeChannel = supabase
       .channel(`ride:${rideId}`)
@@ -380,6 +380,19 @@ export function ActiveRide() {
       <div className="max-w-2xl mx-auto space-y-6">
         <Card>
           <div className="text-center py-6">
+            <div className="flex justify-end mb-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  console.log('Manual refresh triggered');
+                  loadRide();
+                }}
+                title="Refresh ride status"
+              >
+                🔄 Refresh
+              </Button>
+            </div>
             <div className={`w-16 h-16 ${getStatusBgClass()} rounded-full flex items-center justify-center mx-auto mb-4`}>
               {effectiveStatus === 'matching' || effectiveStatus === 'requested' ? (
                 <Clock className={`${getStatusTextClass()} animate-pulse`} size={32} />
