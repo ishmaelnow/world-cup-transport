@@ -45,12 +45,22 @@ export function ActiveRide() {
         },
         (payload) => {
           const updatedRide = payload.new as Ride;
+          const previousDriverId = ride?.driver_id;
+          
           setRide(updatedRide);
-          // If driver is assigned, load driver info and show chat
+          
+          // If driver is assigned (new or changed), load driver info and show chat
           if (updatedRide.driver_id) {
-            loadDriver(updatedRide.driver_id).then(() => {
-              setShowChat(true); // Show chat when driver is loaded
-            });
+            // Only reload if driver_id changed or driver isn't loaded yet
+            if (updatedRide.driver_id !== previousDriverId || !driver) {
+              loadDriver(updatedRide.driver_id).then(() => {
+                setShowChat(true); // Show chat when driver is loaded
+              });
+            }
+          } else {
+            // Driver removed
+            setDriver(null);
+            setShowChat(false);
           }
         }
       )
@@ -60,6 +70,15 @@ export function ActiveRide() {
       supabase.removeChannel(channel);
     };
   }, [rideId]);
+
+  // Ensure driver is loaded when driver_id changes
+  useEffect(() => {
+    if (ride?.driver_id && (!driver || driver.id !== ride.driver_id)) {
+      loadDriver(ride.driver_id).then(() => {
+        setShowChat(true);
+      });
+    }
+  }, [ride?.driver_id]);
 
   const loadRide = async () => {
     if (!rideId) return;
@@ -78,8 +97,13 @@ export function ActiveRide() {
 
     setRide(data);
     if (data.driver_id) {
+      // Load driver and show chat
       await loadDriver(data.driver_id);
       setShowChat(true); // Show chat when driver is loaded
+    } else {
+      // No driver assigned yet
+      setShowChat(false);
+      setDriver(null);
     }
 
     if (data.status === 'completed' && user) {
@@ -250,8 +274,9 @@ export function ActiveRide() {
   }
 
   // Override status display if driver is assigned but status hasn't updated yet
-  const effectiveStatus = ride.driver_id && (ride.status === 'matching' || ride.status === 'requested') 
-    ? 'accepted' 
+  // Check driver_id first - if it exists, driver is assigned regardless of status
+  const effectiveStatus = ride.driver_id 
+    ? (ride.status === 'matching' || ride.status === 'requested' ? 'accepted' : ride.status)
     : ride.status;
 
   const statusInfo = {
@@ -311,37 +336,47 @@ export function ActiveRide() {
           </div>
         </Card>
 
-        {driver && (
+        {/* Driver Card - Show when driver_id exists, even if profile is still loading */}
+        {ride.driver_id && (
           <Card>
             <h4 className="font-semibold text-lg mb-4">Your Driver</h4>
-            <div className="flex items-center space-x-4 mb-4">
-              <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center">
-                <User size={32} className="text-gray-500" />
-              </div>
-              <div className="flex-1">
-                <h5 className="font-semibold text-lg">
-                  {driver.driver_name || (driver as any).user?.full_name || 'Driver'}
-                </h5>
-                <div className="flex items-center space-x-1 text-yellow-500">
-                  <span>⭐</span>
-                  <span className="font-medium">{driver.rating_avg.toFixed(1)}</span>
-                  <span className="text-gray-500 text-sm">({driver.total_trips} trips)</span>
+            {driver ? (
+              <>
+                <div className="flex items-center space-x-4 mb-4">
+                  <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center">
+                    <User size={32} className="text-gray-500" />
+                  </div>
+                  <div className="flex-1">
+                    <h5 className="font-semibold text-lg">
+                      {driver.driver_name || (driver as any).user?.full_name || 'Driver'}
+                    </h5>
+                    <div className="flex items-center space-x-1 text-yellow-500">
+                      <span>⭐</span>
+                      <span className="font-medium">{(driver.rating_avg || 0).toFixed(1)}</span>
+                      <span className="text-gray-500 text-sm">({driver.total_trips || 0} trips)</span>
+                    </div>
+                  </div>
                 </div>
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <div className="flex items-center space-x-2">
+                    <Car size={18} className="text-gray-600" />
+                    <span className="text-gray-900 font-medium">
+                      {driver.vehicle_color} {driver.vehicle_make} {driver.vehicle_model}
+                      {driver.vehicle_year && ` (${driver.vehicle_year})`}
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2 mt-2">
+                    <span className="text-sm text-gray-600">License Plate:</span>
+                    <span className="font-mono font-bold text-gray-900">{driver.vehicle_plate}</span>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-4">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                <p className="text-gray-600">Loading driver information...</p>
               </div>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-3">
-              <div className="flex items-center space-x-2">
-                <Car size={18} className="text-gray-600" />
-                <span className="text-gray-900 font-medium">
-                  {driver.vehicle_color} {driver.vehicle_make} {driver.vehicle_model}
-                  {driver.vehicle_year && ` (${driver.vehicle_year})`}
-                </span>
-              </div>
-              <div className="flex items-center space-x-2 mt-2">
-                <span className="text-sm text-gray-600">License Plate:</span>
-                <span className="font-mono font-bold text-gray-900">{driver.vehicle_plate}</span>
-              </div>
-            </div>
+            )}
 
             {ride.driver_current_lat && ride.driver_current_lng && (
               <div className="mt-4 pt-4 border-t border-gray-200">
@@ -426,8 +461,8 @@ export function ActiveRide() {
           </div>
         </Card>
 
-        {/* Chat Section - Show when driver is assigned */}
-        {driver && ride.driver_id && (
+        {/* Chat Section - Show when driver is assigned (driver_id exists) */}
+        {ride.driver_id && (
           <Card>
             <div className="flex items-center justify-between mb-4">
               <h4 className="font-semibold text-lg">Chat with Driver</h4>
@@ -440,7 +475,7 @@ export function ActiveRide() {
                 {showChat ? 'Hide Chat' : 'Show Chat'}
               </Button>
             </div>
-            {showChat && (
+            {showChat && driver ? (
               <div className="h-96">
                 <Chat
                   rideId={ride.id}
@@ -449,7 +484,12 @@ export function ActiveRide() {
                   title="Chat with Driver"
                 />
               </div>
-            )}
+            ) : showChat ? (
+              <div className="text-center py-8 text-gray-500">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                <p className="text-sm">Loading chat...</p>
+              </div>
+            ) : null}
           </Card>
         )}
 
