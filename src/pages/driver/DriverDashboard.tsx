@@ -192,7 +192,7 @@ export function DriverDashboard() {
         return;
       }
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('rides')
         .update({
           driver_id: profile.id,
@@ -201,10 +201,22 @@ export function DriverDashboard() {
         })
         .eq('id', rideId)
         .eq('status', ride.status)
-        .is('driver_id', null);
+        .is('driver_id', null)
+        .select(); // Return updated row to verify
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Error accepting ride:', error);
+        throw error;
+      }
 
+      if (!data || data.length === 0) {
+        console.error('❌ No rows updated - ride may have been accepted by another driver or status changed');
+        alert('Failed to accept ride. The ride may have been accepted by another driver or is no longer available.');
+        loadAvailableRides();
+        return;
+      }
+
+      console.log('✅ Ride accepted successfully:', data[0]);
       navigate(`/driver/ride/${rideId}`);
     } catch (error) {
       console.error('Error accepting ride:', error);
