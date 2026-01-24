@@ -33,6 +33,14 @@ export function ActiveRide() {
 
     loadRide();
 
+    // Set up polling as fallback for realtime (check every 3 seconds if no driver yet)
+    const pollInterval = setInterval(() => {
+      if (ride && !ride.driver_id && (ride.status === 'matching' || ride.status === 'requested')) {
+        console.log('Polling for driver assignment...');
+        loadRide();
+      }
+    }, 3000);
+
     const channel: RealtimeChannel = supabase
       .channel(`ride:${rideId}`)
       .on(
@@ -78,6 +86,7 @@ export function ActiveRide() {
       .subscribe();
 
     return () => {
+      clearInterval(pollInterval);
       supabase.removeChannel(channel);
     };
   }, [rideId]);
@@ -85,11 +94,20 @@ export function ActiveRide() {
   // Ensure driver is loaded when driver_id changes
   useEffect(() => {
     if (ride?.driver_id && (!driver || driver.id !== ride.driver_id)) {
+      console.log('Driver ID detected, loading driver profile:', ride.driver_id);
       loadDriver(ride.driver_id).then(() => {
+        console.log('Driver profile loaded successfully');
         setShowChat(true);
+      }).catch(err => {
+        console.error('Failed to load driver profile:', err);
       });
+    } else if (ride && !ride.driver_id && driver) {
+      // Driver was removed
+      console.log('Driver removed from ride');
+      setDriver(null);
+      setShowChat(false);
     }
-  }, [ride?.driver_id]);
+  }, [ride?.driver_id, ride?.id]);
 
   const loadRide = async () => {
     if (!rideId) return;
