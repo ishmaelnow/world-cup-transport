@@ -47,3 +47,4 @@ CREATE TRIGGER check_role_on_insert
 -- Simpler: Just update constraint to allow existing admins
 -- But prevent new admin inserts via RLS policy instead
 
+

@@ -98,3 +98,4 @@ supabase --version
 
 **Bottom line:** You don't need the CLI to fix the error. Use the Dashboard method! 🚀
 
+

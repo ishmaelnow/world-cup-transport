@@ -278,7 +278,7 @@ export function ActiveRide() {
         allRatings.reduce((sum, r) => sum + (r.rider_rating || 0), 0) / allRatings.length;
       await supabase
         .from('driver_profiles')
-        .update({ average_rating: avgRating })
+        .update({ rating_avg: avgRating })
         .eq('id', ride.driver_id);
     }
 
@@ -436,7 +436,7 @@ export function ActiveRide() {
                   </div>
                   <div className="flex-1">
                     <h5 className="font-semibold text-lg">
-                      {driver.driver_name || (driver as any).user?.full_name || 'Driver'}
+                      {(driver as any).user?.full_name || 'Driver'}
                     </h5>
                     <div className="flex items-center space-x-1 text-yellow-500">
                       <span>⭐</span>
@@ -595,7 +595,7 @@ export function ActiveRide() {
         {showRatingModal && driver && (
           <RatingModal
             title="Rate Your Driver"
-            subtitle={`How was your ride with ${driver.driver_name || (driver as any).user?.full_name || 'your driver'}?`}
+            subtitle={`How was your ride with ${(driver as any).user?.full_name || 'your driver'}?`}
             onSubmit={handleRatingSubmit}
             onSkip={handleRatingSkip}
           />

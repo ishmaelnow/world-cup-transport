@@ -192,3 +192,4 @@ npm install leaflet react-leaflet
 
 **Current Status:** Basic tracking works, but no embedded maps. Would you like me to add embedded maps to the app?
 
+

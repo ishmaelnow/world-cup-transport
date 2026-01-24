@@ -13,3 +13,4 @@ CHECK (role IN ('rider', 'driver'));
 -- Note: To create admin accounts, manually update in Supabase:
 -- UPDATE profiles SET role = 'admin' WHERE id = 'user-uuid-here';
 
+

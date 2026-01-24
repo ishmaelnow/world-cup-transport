@@ -56,3 +56,4 @@ AND status = 'approved'
 ON CONFLICT (user_id) DO NOTHING;
 */
 
+

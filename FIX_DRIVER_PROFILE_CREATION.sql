@@ -134,3 +134,4 @@ WHERE da.status = 'approved';
 
 -- Should show same count for both
 
+

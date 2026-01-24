@@ -51,3 +51,4 @@ JOIN profiles p ON p.id = da.user_id
 LEFT JOIN auth.users au ON au.id = p.id
 ORDER BY da.created_at DESC;
 
+

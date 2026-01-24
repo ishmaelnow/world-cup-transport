@@ -247,3 +247,4 @@ VITE_STRIPE_PUBLISHABLE_KEY=your_stripe_key (optional)
 
 **Ready to code? Let's go! 🚀**
 
+

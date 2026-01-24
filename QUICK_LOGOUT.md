@@ -47,3 +47,4 @@ The logout button is in the **header** (top of page):
 
 **I've updated the logout button to show "Logout" text on desktop - refresh your browser to see it!**
 
+

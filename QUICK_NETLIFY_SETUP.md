@@ -164,3 +164,4 @@ Netlify automatically deploys! 🚀
 - **Environment variables?** Make sure all 3 are set
 - **Domain not working?** Wait for DNS propagation
 
+

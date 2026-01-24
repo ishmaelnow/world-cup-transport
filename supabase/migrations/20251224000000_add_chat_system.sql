@@ -91,3 +91,4 @@ CREATE POLICY "Admins can view all messages"
 -- Enable realtime for messages table
 ALTER PUBLICATION supabase_realtime ADD TABLE messages;
 
+

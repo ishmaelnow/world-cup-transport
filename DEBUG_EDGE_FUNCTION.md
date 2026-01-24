@@ -155,3 +155,4 @@ Share:
 3. Function logs (any errors?)
 4. Network tab → what URL is being called?
 
+

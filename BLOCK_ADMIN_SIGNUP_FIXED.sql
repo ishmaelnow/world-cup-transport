@@ -34,3 +34,4 @@ CHECK (role IN ('rider', 'driver', 'admin'));
 -- The RLS policy above will block new admin inserts
 -- Existing admins can still log in and function normally
 
+

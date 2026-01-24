@@ -169,3 +169,4 @@ Write-Host "`n=== CLEANUP COMPLETE ===" -ForegroundColor Green
 Write-Host "Total space freed: $totalFreed GB" -ForegroundColor Green
 Write-Host "`nYou can reinstall dependencies with: npm install" -ForegroundColor Yellow
 
+

@@ -52,3 +52,4 @@ In the project sidebar, Edge Functions might appear as:
 
 **Just click on "First Fare" now!** Then look for Edge Functions in the left sidebar.
 
+

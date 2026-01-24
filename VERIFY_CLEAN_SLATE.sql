@@ -45,3 +45,4 @@ FROM driver_applications
 GROUP BY status
 ORDER BY count DESC;
 
+

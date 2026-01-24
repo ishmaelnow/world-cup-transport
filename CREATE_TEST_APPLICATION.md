@@ -119,3 +119,4 @@ After creating a test application:
 3. Check Supabase logs for RLS policy violations
 4. Try logging out and back in as admin
 
+

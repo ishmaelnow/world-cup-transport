@@ -34,3 +34,4 @@ DELETE FROM profiles;
 SELECT COUNT(*) as remaining_profiles FROM profiles;
 SELECT COUNT(*) as remaining_auth_users FROM auth.users;
 
+

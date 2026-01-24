@@ -36,3 +36,4 @@ Then open: `http://localhost:5173` (or whatever port Vite shows)
 **After rebuilding, try adding a payment method again!**
 You should see console logs and automatic redirect. ✅
 
+

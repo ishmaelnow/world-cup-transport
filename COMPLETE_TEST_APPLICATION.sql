@@ -43,3 +43,4 @@ FROM driver_applications da
 JOIN profiles p ON p.id = da.user_id
 ORDER BY da.created_at DESC;
 
+

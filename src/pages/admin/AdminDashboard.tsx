@@ -1129,7 +1129,7 @@ export function AdminDashboard() {
                         <tr key={earning.id} className="hover:bg-gray-50">
                           <td className="px-4 py-3">
                             <div className="text-sm font-medium text-gray-900">
-                              {driverProfile?.full_name || driver?.driver_name || 'Unknown'}
+                              {driverProfile?.full_name || 'Unknown'}
                             </div>
                           </td>
                           <td className="px-4 py-3">

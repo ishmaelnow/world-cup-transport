@@ -16,3 +16,4 @@ WHERE email = 'YOUR_EMAIL_HERE';
 -- SET role = 'admin'
 -- WHERE id = 'USER_ID_HERE';
 
+

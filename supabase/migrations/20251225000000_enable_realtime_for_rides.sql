@@ -11,3 +11,4 @@ ALTER PUBLICATION supabase_realtime ADD TABLE rides;
 -- Verify it's enabled (this will show in Supabase dashboard)
 -- Check: Database → Replication → rides table should show as "Enabled"
 
+

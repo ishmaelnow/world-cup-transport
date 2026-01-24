@@ -83,3 +83,4 @@ SELECT 'drivers_in_profiles', COUNT(*) FROM profiles WHERE role = 'driver';
 
 -- All counts should be 0 (except payment_methods if you didn't delete them)
 
+

@@ -22,3 +22,4 @@ FROM pg_policies
 WHERE tablename = 'driver_applications'
 ORDER BY policyname;
 
+

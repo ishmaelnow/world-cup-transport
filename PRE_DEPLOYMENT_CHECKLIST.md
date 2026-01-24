@@ -141,3 +141,4 @@ git push origin main
 - ✅ `dist/` won't be committed (correct!)
 - ✅ Update Supabase AFTER deployment (need URL first)
 
+
