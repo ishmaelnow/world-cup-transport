@@ -1,0 +1,46 @@
+═══════════════════════════════════════════════════════════════
+  QUICK ROLLBACK TO STABLE CHECKPOINT
+═══════════════════════════════════════════════════════════════
+
+TAG: v1.0-stable-checkpoint
+DATE: January 24, 2026
+
+═══════════════════════════════════════════════════════════════
+  ROLLBACK COMMANDS
+═══════════════════════════════════════════════════════════════
+
+# Option 1: Checkout tag (read-only)
+git fetch origin --tags
+git checkout v1.0-stable-checkpoint
+
+# Option 2: Create branch from tag (recommended)
+git fetch origin --tags
+git checkout -b restore-stable v1.0-stable-checkpoint
+
+# Option 3: Reset main branch (⚠️ DESTRUCTIVE)
+git fetch origin --tags
+git reset --hard v1.0-stable-checkpoint
+git push origin main --force
+
+═══════════════════════════════════════════════════════════════
+  AFTER ROLLBACK - RUN THESE SQL FIXES
+═══════════════════════════════════════════════════════════════
+
+1. DEFINITIVE_FIX.sql (or FIX_TRIGGER_NOW.sql)
+   → Fixes driver application trigger function
+
+2. FIX_DRIVER_ACCEPTANCE_RLS.sql
+   → Adds RLS policy for driver acceptance
+
+═══════════════════════════════════════════════════════════════
+  VERIFY IT WORKED
+═══════════════════════════════════════════════════════════════
+
+Run verification queries from DEFINITIVE_FIX.sql:
+- Check 1: Trigger function ✅ CORRECT
+- Check 2: Profiles match applications
+- Check 3: Missing profiles = 0
+- Check 4: Wrong roles = 0
+
+═══════════════════════════════════════════════════════════════
+
