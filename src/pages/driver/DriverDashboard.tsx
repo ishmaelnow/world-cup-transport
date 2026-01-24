@@ -88,9 +88,19 @@ export function DriverDashboard() {
 
     const { data } = await query
       .order('requested_at', { ascending: true })
-      .limit(5);
+      .limit(20); // Get more to filter scheduled rides
 
-    setAvailableRides(data || []);
+    // Filter out scheduled rides that haven't reached their scheduled time
+    const now = new Date();
+    const availableRides = (data || []).filter((ride) => {
+      if (ride.scheduled_at) {
+        const scheduledTime = new Date(ride.scheduled_at);
+        return scheduledTime <= now; // Only show if scheduled time has passed
+      }
+      return true; // Show immediate rides
+    }).slice(0, 5); // Limit to 5 after filtering
+
+    setAvailableRides(availableRides);
   };
 
   const subscribeToNewRides = () => {
@@ -107,8 +117,18 @@ export function DriverDashboard() {
           const newRide = payload.new as Ride;
           // Only add if status is matching/requested AND no driver assigned
           // AND vehicle type matches (if ride has vehicle_type preference)
+          // AND scheduled time has passed (if ride is scheduled)
           if ((newRide.status === 'matching' || newRide.status === 'requested') && !newRide.driver_id) {
             if (!profile) return;
+            
+            // Check if scheduled ride time has passed
+            if (newRide.scheduled_at) {
+              const scheduledTime = new Date(newRide.scheduled_at);
+              const now = new Date();
+              if (scheduledTime > now) {
+                return; // Don't show scheduled rides that haven't reached their time
+              }
+            }
             
             // If ride has no vehicle_type preference, show to all drivers
             // If ride has vehicle_type preference, only show to matching drivers

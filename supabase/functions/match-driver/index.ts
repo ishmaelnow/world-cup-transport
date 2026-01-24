@@ -81,13 +81,41 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { data: availableDrivers, error: driversError } = await supabase
+    // Check if ride is scheduled for the future - don't match yet
+    if (ride.scheduled_at) {
+      const scheduledTime = new Date(ride.scheduled_at);
+      const now = new Date();
+      if (scheduledTime > now) {
+        return new Response(
+          JSON.stringify({ 
+            message: 'Ride is scheduled for the future',
+            scheduledAt: ride.scheduled_at 
+          }),
+          {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+    }
+
+    // Build driver query with vehicle type filtering if ride has preference
+    let driverQuery = supabase
       .from('driver_profiles')
       .select('*')
       .eq('is_available', true)
       .eq('is_active', true)
       .not('last_location_lat', 'is', null)
       .not('last_location_lng', 'is', null);
+
+    // Filter by vehicle type if ride has a preference
+    // If ride has no vehicle_type preference, show to all drivers
+    // If ride has vehicle_type preference, only match drivers with that type
+    if (ride.vehicle_type) {
+      driverQuery = driverQuery.eq('vehicle_type', ride.vehicle_type);
+    }
+
+    const { data: availableDrivers, error: driversError } = await driverQuery;
 
     if (driversError || !availableDrivers || availableDrivers.length === 0) {
       return new Response(
