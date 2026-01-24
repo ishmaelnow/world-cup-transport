@@ -33,16 +33,22 @@ export function ActiveRide() {
 
     loadRide();
 
-    // Set up polling as fallback for realtime (check every 2 seconds if no driver yet)
+    // AGGRESSIVE polling - check every 1 second if no driver yet
+    // This ensures we catch driver assignment even if realtime fails
     const pollInterval = setInterval(() => {
       if (ride && !ride.driver_id && (ride.status === 'matching' || ride.status === 'requested')) {
         console.log('🔄 Polling for driver assignment...');
         loadRide(false); // Don't show loading spinner on poll
       }
-    }, 2000);
+    }, 1000); // Check every 1 second
 
+    // Set up realtime subscription
     const channel: RealtimeChannel = supabase
-      .channel(`ride:${rideId}`)
+      .channel(`ride:${rideId}`, {
+        config: {
+          broadcast: { self: true },
+        },
+      })
       .on(
         'postgres_changes',
         {
@@ -52,38 +58,45 @@ export function ActiveRide() {
           filter: `id=eq.${rideId}`,
         },
         (payload) => {
+          console.log('📡 Realtime UPDATE received:', payload);
           const updatedRide = payload.new as Ride;
           const previousDriverId = ride?.driver_id;
           
-          console.log('Realtime ride update:', {
+          console.log('📡 Realtime ride update:', {
             previousDriverId,
             newDriverId: updatedRide.driver_id,
             previousStatus: ride?.status,
-            newStatus: updatedRide.status
+            newStatus: updatedRide.status,
+            hasDriver: !!updatedRide.driver_id
           });
           
           setRide(updatedRide);
           
           // If driver is assigned (new or changed), load driver info and show chat
           if (updatedRide.driver_id) {
-            // Only reload if driver_id changed or driver isn't loaded yet
-            if (updatedRide.driver_id !== previousDriverId || !driver) {
-              console.log('Loading driver:', updatedRide.driver_id);
-              loadDriver(updatedRide.driver_id).then(() => {
-                console.log('Driver loaded, showing chat');
-                setShowChat(true); // Show chat when driver is loaded
-              }).catch(err => {
-                console.error('Error loading driver:', err);
-              });
-            }
-          } else {
+            console.log('🚗 Driver assigned via realtime, loading profile:', updatedRide.driver_id);
+            loadDriver(updatedRide.driver_id).then(() => {
+              console.log('✅ Driver profile loaded, showing chat');
+              setShowChat(true); // Show chat when driver is loaded
+            }).catch(err => {
+              console.error('❌ Error loading driver:', err);
+            });
+          } else if (previousDriverId) {
             // Driver removed
+            console.log('⚠️ Driver removed from ride');
             setDriver(null);
             setShowChat(false);
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('📡 Realtime subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Successfully subscribed to ride updates');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Realtime subscription error - falling back to polling');
+        }
+      });
 
     return () => {
       clearInterval(pollInterval);
