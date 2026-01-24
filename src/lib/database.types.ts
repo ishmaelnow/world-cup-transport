@@ -427,6 +427,41 @@ export interface Database {
           created_at?: string;
         };
       };
+      messages: {
+        Row: {
+          id: string;
+          ride_id: string | null;
+          sender_id: string;
+          recipient_id: string | null;
+          recipient_type: 'rider' | 'driver' | 'admin' | 'all' | null;
+          message_text: string;
+          read: boolean;
+          read_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          ride_id?: string | null;
+          sender_id: string;
+          recipient_id?: string | null;
+          recipient_type?: 'rider' | 'driver' | 'admin' | 'all' | null;
+          message_text: string;
+          read?: boolean;
+          read_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          ride_id?: string | null;
+          sender_id?: string;
+          recipient_id?: string | null;
+          recipient_type?: 'rider' | 'driver' | 'admin' | 'all' | null;
+          message_text?: string;
+          read?: boolean;
+          read_at?: string | null;
+          created_at?: string;
+        };
+      };
     };
     Views: {};
     Functions: {};

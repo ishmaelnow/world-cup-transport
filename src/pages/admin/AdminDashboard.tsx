@@ -5,7 +5,8 @@ import { Button } from '../../components/Button';
 import { supabase } from '../../lib/supabase';
 import { formatCurrency } from '../../lib/fare';
 import type { Database } from '../../lib/database.types';
-import { Users, Car, DollarSign, TrendingUp, MapPin, Clock } from 'lucide-react';
+import { Users, Car, DollarSign, TrendingUp, MapPin, Clock, MessageSquare } from 'lucide-react';
+import { Chat } from '../../components/Chat';
 
 type Ride = Database['public']['Tables']['rides']['Row'];
 type DriverProfile = Database['public']['Tables']['driver_profiles']['Row'];
@@ -37,9 +38,11 @@ export function AdminDashboard() {
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
   const [earnings, setEarnings] = useState<any[]>([]);
   const [applications, setApplications] = useState<DriverApplication[]>([]);
-  const [activeTab, setActiveTab] = useState<'overview' | 'rides' | 'drivers' | 'applications' | 'verification' | 'payments'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'rides' | 'drivers' | 'applications' | 'verification' | 'payments' | 'chat'>('overview');
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [selectedChatRecipient, setSelectedChatRecipient] = useState<string | null>(null);
+  const [selectedChatRideId, setSelectedChatRideId] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -350,6 +353,17 @@ export function AdminDashboard() {
             }`}
           >
             Payments & Earnings
+          </button>
+          <button
+            onClick={() => setActiveTab('chat')}
+            className={`px-4 py-2 font-medium transition-colors ${
+              activeTab === 'chat'
+                ? 'border-b-2 border-blue-600 text-blue-600'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <MessageSquare size={18} className="inline mr-2" />
+            Chat
           </button>
         </div>
 
@@ -1194,6 +1208,91 @@ export function AdminDashboard() {
                   </div>
                 )}
               </div>
+            </Card>
+          </div>
+        )}
+
+        {activeTab === 'chat' && (
+          <div className="space-y-6">
+            <Card>
+              <h3 className="text-lg font-semibold mb-4">Admin Chat</h3>
+              <p className="text-gray-600 mb-4">
+                Chat with riders and drivers. Select a ride to view messages, or start a new conversation.
+              </p>
+              
+              {/* Chat for specific ride */}
+              {selectedChatRideId ? (
+                <div className="h-96">
+                  <Chat
+                    rideId={selectedChatRideId}
+                    title="Ride Chat"
+                    onClose={() => {
+                      setSelectedChatRideId(null);
+                      setSelectedChatRecipient(null);
+                    }}
+                  />
+                </div>
+              ) : selectedChatRecipient ? (
+                <div className="h-96">
+                  <Chat
+                    recipientId={selectedChatRecipient}
+                    title="Direct Message"
+                    onClose={() => {
+                      setSelectedChatRecipient(null);
+                      setSelectedChatRideId(null);
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Active rides with chat */}
+                  <div>
+                    <h4 className="font-semibold mb-2">Active Rides</h4>
+                    <div className="space-y-2">
+                      {rides
+                        .filter((r) => ['accepted', 'arriving', 'in_progress'].includes(r.status))
+                        .slice(0, 5)
+                        .map((ride) => (
+                          <div
+                            key={ride.id}
+                            className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer"
+                            onClick={() => {
+                              setSelectedChatRideId(ride.id);
+                              setSelectedChatRecipient(null);
+                            }}
+                          >
+                            <div>
+                              <div className="font-medium text-sm">
+                                {ride.pickup_address.split(',')[0]} → {ride.dropoff_address.split(',')[0]}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {profiles[ride.rider_id]?.full_name || 'Rider'}
+                              </div>
+                            </div>
+                            <Button size="sm" variant="secondary">
+                              <MessageSquare size={16} className="mr-2" />
+                              Chat
+                            </Button>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+
+                  {/* General admin chat */}
+                  <div className="pt-4 border-t border-gray-200">
+                    <h4 className="font-semibold mb-2">General Support</h4>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Use this for general support messages to all users.
+                    </p>
+                    <div className="h-96">
+                      <Chat
+                        recipientType="all"
+                        title="Admin Broadcast Chat"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </Card>
           </div>
         )}

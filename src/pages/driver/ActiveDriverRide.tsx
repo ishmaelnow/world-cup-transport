@@ -8,8 +8,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { formatCurrency } from '../../lib/fare';
 import type { Database } from '../../lib/database.types';
-import { MapPin, Navigation, CheckCircle } from 'lucide-react';
+import { MapPin, Navigation, CheckCircle, MessageSquare } from 'lucide-react';
 import { RideMap } from '../../components/RideMap';
+import { Chat } from '../../components/Chat';
 
 type Ride = Database['public']['Tables']['rides']['Row'];
 
@@ -21,6 +22,7 @@ export function ActiveDriverRide() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [showRatingModal, setShowRatingModal] = useState(false);
+  const [showChat, setShowChat] = useState(false);
 
   useEffect(() => {
     if (!rideId) return;
@@ -338,6 +340,33 @@ export function ActiveDriverRide() {
             </div>
           </div>
         </Card>
+
+        {/* Chat Section - Show when rider is assigned */}
+        {ride.rider_id && (
+          <Card>
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="font-semibold text-lg">Chat with Rider</h4>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowChat(!showChat)}
+              >
+                <MessageSquare size={18} className="mr-2" />
+                {showChat ? 'Hide Chat' : 'Show Chat'}
+              </Button>
+            </div>
+            {showChat && (
+              <div className="h-96">
+                <Chat
+                  rideId={ride.id}
+                  recipientId={ride.rider_id}
+                  recipientType="rider"
+                  title="Chat with Rider"
+                />
+              </div>
+            )}
+          </Card>
+        )}
 
         {nextAction && (
           <Button

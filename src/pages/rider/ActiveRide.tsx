@@ -8,9 +8,10 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { formatCurrency } from '../../lib/fare';
 import type { Database } from '../../lib/database.types';
-import { MapPin, User, Car, Clock, Phone } from 'lucide-react';
+import { MapPin, User, Car, Clock, Phone, MessageSquare } from 'lucide-react';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { RideMap } from '../../components/RideMap';
+import { Chat } from '../../components/Chat';
 
 type Ride = Database['public']['Tables']['rides']['Row'];
 type DriverProfile = Database['public']['Tables']['driver_profiles']['Row'];
@@ -25,6 +26,7 @@ export function ActiveRide() {
   const [canceling, setCanceling] = useState(false);
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [hasRated, setHasRated] = useState(false);
+  const [showChat, setShowChat] = useState(false);
 
   useEffect(() => {
     if (!rideId) return;
@@ -413,6 +415,33 @@ export function ActiveRide() {
             </span>
           </div>
         </Card>
+
+        {/* Chat Section - Show when driver is assigned */}
+        {driver && ride.driver_id && (
+          <Card>
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="font-semibold text-lg">Chat with Driver</h4>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowChat(!showChat)}
+              >
+                <MessageSquare size={18} className="mr-2" />
+                {showChat ? 'Hide Chat' : 'Show Chat'}
+              </Button>
+            </div>
+            {showChat && (
+              <div className="h-96">
+                <Chat
+                  rideId={ride.id}
+                  recipientId={driver.user_id}
+                  recipientType="driver"
+                  title="Chat with Driver"
+                />
+              </div>
+            )}
+          </Card>
+        )}
 
         {(ride.status === 'matching' || ride.status === 'requested') && (
           <Button
