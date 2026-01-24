@@ -340,7 +340,7 @@ export function ActiveRide() {
       effectiveStatus: effectiveStatusValue,
       statusInfo: statusInfoValue
     };
-  }, [ride?.id, ride?.driver_id, ride?.status]); // Recalculate when ANY of these change - use optional chaining for null safety
+  }, [ride]); // Use ride object itself - React will handle null safely and compare by reference
 
   const getStatusBgClass = () => {
     if (statusInfo.color === 'blue') return 'bg-blue-100';
