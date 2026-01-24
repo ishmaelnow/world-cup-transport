@@ -47,14 +47,25 @@ export function ActiveRide() {
           const updatedRide = payload.new as Ride;
           const previousDriverId = ride?.driver_id;
           
+          console.log('Realtime ride update:', {
+            previousDriverId,
+            newDriverId: updatedRide.driver_id,
+            previousStatus: ride?.status,
+            newStatus: updatedRide.status
+          });
+          
           setRide(updatedRide);
           
           // If driver is assigned (new or changed), load driver info and show chat
           if (updatedRide.driver_id) {
             // Only reload if driver_id changed or driver isn't loaded yet
             if (updatedRide.driver_id !== previousDriverId || !driver) {
+              console.log('Loading driver:', updatedRide.driver_id);
               loadDriver(updatedRide.driver_id).then(() => {
+                console.log('Driver loaded, showing chat');
                 setShowChat(true); // Show chat when driver is loaded
+              }).catch(err => {
+                console.error('Error loading driver:', err);
               });
             }
           } else {
@@ -96,12 +107,20 @@ export function ActiveRide() {
     }
 
     setRide(data);
+    console.log('Ride loaded:', { 
+      rideId: data.id, 
+      driver_id: data.driver_id, 
+      status: data.status 
+    });
+    
     if (data.driver_id) {
       // Load driver and show chat
+      console.log('Driver ID found, loading driver profile:', data.driver_id);
       await loadDriver(data.driver_id);
       setShowChat(true); // Show chat when driver is loaded
     } else {
       // No driver assigned yet
+      console.log('No driver assigned yet');
       setShowChat(false);
       setDriver(null);
     }
@@ -275,9 +294,19 @@ export function ActiveRide() {
 
   // Override status display if driver is assigned but status hasn't updated yet
   // Check driver_id first - if it exists, driver is assigned regardless of status
-  const effectiveStatus = ride.driver_id 
-    ? (ride.status === 'matching' || ride.status === 'requested' ? 'accepted' : ride.status)
+  const hasDriver = !!ride.driver_id;
+  const effectiveStatus = hasDriver && (ride.status === 'matching' || ride.status === 'requested')
+    ? 'accepted'
     : ride.status;
+  
+  // Debug logging (remove in production if needed)
+  if (hasDriver && (ride.status === 'matching' || ride.status === 'requested')) {
+    console.log('Driver assigned but status not updated:', { 
+      driver_id: ride.driver_id, 
+      status: ride.status, 
+      effectiveStatus 
+    });
+  }
 
   const statusInfo = {
     matching: {
