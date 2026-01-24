@@ -1,5 +1,9 @@
--- Fix the trigger function to use correct column names
--- Run this in Supabase SQL Editor
+/*
+  # Fix Driver Profile Creation Trigger
+  
+  The trigger function has incorrect column names.
+  This fixes it to match the actual schema.
+*/
 
 CREATE OR REPLACE FUNCTION handle_driver_application_review()
 RETURNS TRIGGER AS $$
@@ -25,8 +29,8 @@ BEGIN
       vehicle_model,
       vehicle_year,
       vehicle_color,
-      vehicle_plate,        -- Fixed: was license_plate
-      license_number,       -- Fixed: was drivers_license
+      vehicle_plate,        -- Fixed: driver_profiles uses vehicle_plate (not license_plate)
+      license_number,       -- Fixed: driver_profiles uses license_number (not drivers_license)
       is_available,
       is_active
     ) VALUES (
@@ -35,19 +39,12 @@ BEGIN
       NEW.vehicle_model,
       NEW.vehicle_year,
       NEW.vehicle_color,
-      NEW.license_plate,    -- From application table
-      NEW.drivers_license,  -- From application table
-      false,                 -- Start offline
-      true                   -- Active
+      NEW.license_plate,    -- From driver_applications table
+      NEW.drivers_license,  -- From driver_applications table
+      false,
+      true
     )
-    ON CONFLICT (user_id) DO UPDATE SET
-      vehicle_make = NEW.vehicle_make,
-      vehicle_model = NEW.vehicle_model,
-      vehicle_year = NEW.vehicle_year,
-      vehicle_color = NEW.vehicle_color,
-      vehicle_plate = NEW.license_plate,
-      license_number = NEW.drivers_license,
-      is_active = true;
+    ON CONFLICT (user_id) DO NOTHING;
 
     -- Update user role to driver
     UPDATE profiles
@@ -55,34 +52,26 @@ BEGIN
     WHERE id = NEW.user_id;
 
     -- Notify applicant
-    INSERT INTO notifications (user_id, type, title, message, data)
+    INSERT INTO notifications (user_id, type, title, message)
     VALUES (
       NEW.user_id,
-      'driver_application_approved',
+      'verification',
       'Application Approved!',
-      'Congratulations! Your driver application has been approved. You can now start accepting rides.',
-      jsonb_build_object('application_id', NEW.id)
+      'Congratulations! Your driver application has been approved. You can now start accepting rides.'
     );
   END IF;
 
   -- Handle rejection
   IF NEW.status = 'rejected' THEN
-    INSERT INTO notifications (user_id, type, title, message, data)
+    INSERT INTO notifications (user_id, type, title, message)
     VALUES (
       NEW.user_id,
-      'driver_application_rejected',
+      'verification',
       'Application Update',
-      'Your driver application has been reviewed. ' || COALESCE(NEW.rejection_reason, 'Please contact support for more information.'),
-      jsonb_build_object('application_id', NEW.id)
+      'Your driver application has been reviewed. ' || COALESCE(NEW.rejection_reason, 'Please contact support for more information.')
     );
   END IF;
 
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Verify the function was updated
-SELECT proname, prosrc 
-FROM pg_proc 
-WHERE proname = 'handle_driver_application_review';
-

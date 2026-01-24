@@ -26,6 +26,8 @@ export function Chat({ rideId, recipientId, recipientType, onClose, title }: Cha
   const channelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
+    if (!user) return;
+    
     loadMessages();
     subscribeToMessages();
 
@@ -34,7 +36,7 @@ export function Chat({ rideId, recipientId, recipientType, onClose, title }: Cha
         supabase.removeChannel(channelRef.current);
       }
     };
-  }, [rideId, recipientId]);
+  }, [rideId, recipientId, user]);
 
   useEffect(() => {
     scrollToBottom();

@@ -26,7 +26,7 @@ export function ActiveRide() {
   const [canceling, setCanceling] = useState(false);
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [hasRated, setHasRated] = useState(false);
-  const [showChat, setShowChat] = useState(false);
+  const [showChat, setShowChat] = useState(true); // Show chat by default when driver is assigned
 
   useEffect(() => {
     if (!rideId) return;
@@ -44,9 +44,11 @@ export function ActiveRide() {
           filter: `id=eq.${rideId}`,
         },
         (payload) => {
-          setRide(payload.new as Ride);
-          if (payload.new.driver_id) {
-            loadDriver(payload.new.driver_id);
+          const updatedRide = payload.new as Ride;
+          setRide(updatedRide);
+          if (updatedRide.driver_id) {
+            loadDriver(updatedRide.driver_id);
+            setShowChat(true); // Show chat when driver is assigned via realtime
           }
         }
       )
@@ -75,6 +77,7 @@ export function ActiveRide() {
     setRide(data);
     if (data.driver_id) {
       await loadDriver(data.driver_id);
+      setShowChat(true); // Show chat when driver is loaded
     }
 
     if (data.status === 'completed' && user) {
@@ -244,6 +247,11 @@ export function ActiveRide() {
     );
   }
 
+  // Override status display if driver is assigned but status hasn't updated yet
+  const effectiveStatus = ride.driver_id && (ride.status === 'matching' || ride.status === 'requested') 
+    ? 'accepted' 
+    : ride.status;
+
   const statusInfo = {
     matching: {
       title: 'Finding Your Driver',
@@ -270,7 +278,7 @@ export function ActiveRide() {
       description: 'Enjoy your ride!',
       color: 'blue',
     },
-  }[ride.status] || { title: '', description: '', color: 'gray' };
+  }[effectiveStatus] || { title: '', description: '', color: 'gray' };
 
   const getStatusBgClass = () => {
     if (statusInfo.color === 'blue') return 'bg-blue-100';
@@ -290,7 +298,7 @@ export function ActiveRide() {
         <Card>
           <div className="text-center py-6">
             <div className={`w-16 h-16 ${getStatusBgClass()} rounded-full flex items-center justify-center mx-auto mb-4`}>
-              {ride.status === 'matching' || ride.status === 'requested' ? (
+              {effectiveStatus === 'matching' || effectiveStatus === 'requested' ? (
                 <Clock className={`${getStatusTextClass()} animate-pulse`} size={32} />
               ) : (
                 <Car className={getStatusTextClass()} size={32} />
@@ -443,7 +451,7 @@ export function ActiveRide() {
           </Card>
         )}
 
-        {(ride.status === 'matching' || ride.status === 'requested') && (
+        {(effectiveStatus === 'matching' || effectiveStatus === 'requested') && (
           <Button
             variant="danger"
             onClick={handleCancel}

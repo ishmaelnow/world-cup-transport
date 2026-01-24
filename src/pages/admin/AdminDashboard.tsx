@@ -1215,58 +1215,112 @@ export function AdminDashboard() {
         {activeTab === 'chat' && (
           <div className="space-y-6">
             <Card>
-              <h3 className="text-lg font-semibold mb-4">Admin Chat</h3>
-              <p className="text-gray-600 mb-4">
-                Chat with riders and drivers. Select a ride to view messages, or start a new conversation.
-              </p>
+              <h3 className="text-xl font-semibold mb-4">Admin Chat</h3>
               
               {/* Chat for specific ride */}
               {selectedChatRideId ? (
-                <div className="h-96">
-                  <Chat
-                    rideId={selectedChatRideId}
-                    title="Ride Chat"
-                    onClose={() => {
-                      setSelectedChatRideId(null);
-                      setSelectedChatRecipient(null);
-                    }}
-                  />
+                <div>
+                  <div className="mb-4 flex items-center justify-between">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedChatRideId(null);
+                        setSelectedChatRecipient(null);
+                      }}
+                    >
+                      ← Back to Chat List
+                    </Button>
+                  </div>
+                  <div className="h-[500px]">
+                    <Chat
+                      rideId={selectedChatRideId}
+                      title="Ride Chat"
+                    />
+                  </div>
                 </div>
               ) : selectedChatRecipient ? (
-                <div className="h-96">
-                  <Chat
-                    recipientId={selectedChatRecipient}
-                    title="Direct Message"
-                    onClose={() => {
-                      setSelectedChatRecipient(null);
-                      setSelectedChatRideId(null);
-                    }}
-                  />
+                <div>
+                  <div className="mb-4 flex items-center justify-between">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedChatRecipient(null);
+                        setSelectedChatRideId(null);
+                      }}
+                    >
+                      ← Back to Chat List
+                    </Button>
+                  </div>
+                  <div className="h-[500px]">
+                    <Chat
+                      recipientId={selectedChatRecipient}
+                      recipientType={profiles[selectedChatRecipient]?.role || 'admin'}
+                      title={`Chat with ${profiles[selectedChatRecipient]?.full_name || profiles[selectedChatRecipient]?.email || 'User'}`}
+                    />
+                  </div>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {/* Active rides with chat */}
-                  <div>
-                    <h4 className="font-semibold mb-2">Active Rides</h4>
-                    <div className="space-y-2">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Left: User List */}
+                  <div className="lg:col-span-1">
+                    <h4 className="font-semibold text-lg mb-3">Users</h4>
+                    <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                      {Object.values(profiles)
+                        .filter(p => p.role !== 'admin')
+                        .map((profile) => (
+                          <div
+                            key={profile.id}
+                            className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                            onClick={() => {
+                              setSelectedChatRecipient(profile.id);
+                              setSelectedChatRideId(null);
+                            }}
+                          >
+                            <div className="flex-1">
+                              <div className="font-medium text-sm">
+                                {profile.full_name || profile.email}
+                              </div>
+                              <div className="text-xs text-gray-500 capitalize">
+                                {profile.role}
+                              </div>
+                            </div>
+                            <MessageSquare size={16} className="text-gray-400" />
+                          </div>
+                        ))}
+                      {Object.values(profiles).filter(p => p.role !== 'admin').length === 0 && (
+                        <div className="text-center py-8 text-gray-500 text-sm">
+                          No users found
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right: Active Rides */}
+                  <div className="lg:col-span-2">
+                    <h4 className="font-semibold text-lg mb-3">Active Rides</h4>
+                    <div className="space-y-2 max-h-[600px] overflow-y-auto">
                       {rides
                         .filter((r) => ['accepted', 'arriving', 'in_progress'].includes(r.status))
-                        .slice(0, 5)
                         .map((ride) => (
                           <div
                             key={ride.id}
-                            className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer"
+                            className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
                             onClick={() => {
                               setSelectedChatRideId(ride.id);
                               setSelectedChatRecipient(null);
                             }}
                           >
-                            <div>
-                              <div className="font-medium text-sm">
+                            <div className="flex-1">
+                              <div className="font-medium text-sm mb-1">
                                 {ride.pickup_address.split(',')[0]} → {ride.dropoff_address.split(',')[0]}
                               </div>
                               <div className="text-xs text-gray-500">
-                                {profiles[ride.rider_id]?.full_name || 'Rider'}
+                                Rider: {profiles[ride.rider_id]?.full_name || profiles[ride.rider_id]?.email || 'Unknown'}
+                              </div>
+                              <div className="text-xs text-gray-400 mt-1">
+                                Status: <span className="capitalize">{ride.status.replace('_', ' ')}</span>
                               </div>
                             </div>
                             <Button size="sm" variant="secondary">
@@ -1275,20 +1329,13 @@ export function AdminDashboard() {
                             </Button>
                           </div>
                         ))}
-                    </div>
-                  </div>
-
-                  {/* General admin chat */}
-                  <div className="pt-4 border-t border-gray-200">
-                    <h4 className="font-semibold mb-2">General Support</h4>
-                    <p className="text-sm text-gray-600 mb-4">
-                      Use this for general support messages to all users.
-                    </p>
-                    <div className="h-96">
-                      <Chat
-                        recipientType="all"
-                        title="Admin Broadcast Chat"
-                      />
+                      {rides.filter((r) => ['accepted', 'arriving', 'in_progress'].includes(r.status)).length === 0 && (
+                        <div className="text-center py-12 text-gray-500">
+                          <MessageSquare size={48} className="mx-auto mb-2 opacity-50" />
+                          <p className="text-sm">No active rides</p>
+                          <p className="text-xs text-gray-400 mt-1">Select a user from the left to start a conversation</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
