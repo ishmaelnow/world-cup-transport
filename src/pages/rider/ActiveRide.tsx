@@ -340,7 +340,7 @@ export function ActiveRide() {
       effectiveStatus: effectiveStatusValue,
       statusInfo: statusInfoValue
     };
-  }, [ride.id, ride.driver_id, ride.status]); // Recalculate when ANY of these change
+  }, [ride?.id, ride?.driver_id, ride?.status]); // Recalculate when ANY of these change - use optional chaining for null safety
 
   const getStatusBgClass = () => {
     if (statusInfo.color === 'blue') return 'bg-blue-100';
@@ -353,6 +353,15 @@ export function ActiveRide() {
     if (statusInfo.color === 'green') return 'text-green-600';
     return 'text-gray-600';
   };
+
+  // Early returns AFTER all hooks
+  if (loading || !ride) {
+    return (
+      <Layout title={statusInfo.title}>
+        <div className="text-center py-12">Loading ride details...</div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout title={statusInfo.title}>
