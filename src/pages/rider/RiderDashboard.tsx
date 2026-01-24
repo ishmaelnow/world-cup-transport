@@ -166,20 +166,44 @@ export function RiderDashboard() {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-      const paymentResponse = await fetch(`${supabaseUrl}/functions/v1/create-payment-intent`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${supabaseAnonKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          rideId: data.id,
-          paymentMethodId: selectedPaymentMethod
-        }),
-      });
+      if (!supabaseUrl || !supabaseAnonKey) {
+        throw new Error(
+          'Missing Supabase configuration. Check your .env file and restart dev server.'
+        );
+      }
+
+      let paymentResponse: Response;
+      try {
+        paymentResponse = await fetch(`${supabaseUrl}/functions/v1/create-payment-intent`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session?.access_token || supabaseAnonKey}`,
+            'apikey': supabaseAnonKey,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            rideId: data.id,
+            paymentMethodId: selectedPaymentMethod
+          }),
+        });
+      } catch (fetchError: any) {
+        throw new Error(
+          `Connection failed: ${fetchError.message || 'Cannot reach Supabase'}. ` +
+          'Check internet connection and Edge Functions deployment. See CONNECTION_ERRORS_FIX.md'
+        );
+      }
 
       if (!paymentResponse.ok) {
-        throw new Error('Failed to create payment authorization');
+        if (paymentResponse.status === 404) {
+          throw new Error(
+            'Edge Function not found. Deploy Edge Functions in Supabase Dashboard. ' +
+            'See CONNECTION_ERRORS_FIX.md'
+          );
+        }
+        const errorData = await paymentResponse.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(
+          `Payment authorization failed (${paymentResponse.status}): ${errorData.error || 'Unknown error'}`
+        );
       }
 
       // Step 4: Ride is now available for drivers to accept manually
@@ -277,38 +301,40 @@ export function RiderDashboard() {
 
                 {/* Scheduled Date/Time Inputs */}
                 {isScheduled && (
-              <div className="grid grid-cols-2 gap-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    <Calendar size={14} className="inline mr-1" />
-                    Date
-                  </label>
-                  <Input
-                    type="date"
-                    value={scheduledDate}
-                    onChange={(e) => setScheduledDate(e.target.value)}
-                    min={new Date().toISOString().split('T')[0]}
-                    required={isScheduled}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    <Clock size={14} className="inline mr-1" />
-                    Time
-                  </label>
-                  <Input
-                    type="time"
-                    value={scheduledTime}
-                    onChange={(e) => setScheduledTime(e.target.value)}
-                    required={isScheduled}
-                  />
-                </div>
-                {scheduledDate && scheduledTime && (
-                  <div className="col-span-2 text-xs text-gray-600 mt-2">
-                    Scheduled for: {new Date(`${scheduledDate}T${scheduledTime}`).toLocaleString()}
+                  <div className="grid grid-cols-2 gap-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        <Calendar size={14} className="inline mr-1" />
+                        Date
+                      </label>
+                      <Input
+                        type="date"
+                        value={scheduledDate}
+                        onChange={(e) => setScheduledDate(e.target.value)}
+                        min={new Date().toISOString().split('T')[0]}
+                        required={isScheduled}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        <Clock size={14} className="inline mr-1" />
+                        Time
+                      </label>
+                      <Input
+                        type="time"
+                        value={scheduledTime}
+                        onChange={(e) => setScheduledTime(e.target.value)}
+                        required={isScheduled}
+                      />
+                    </div>
+                    {scheduledDate && scheduledTime && (
+                      <div className="col-span-2 text-xs text-gray-600 mt-2">
+                        Scheduled for: {new Date(`${scheduledDate}T${scheduledTime}`).toLocaleString()}
+                      </div>
+                    )}
                   </div>
                 )}
-              </div>
+              </>
             )}
 
             {fareEstimate && (

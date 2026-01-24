@@ -43,22 +43,59 @@ function CardForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: ()
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-      const response = await fetch(`${supabaseUrl}/functions/v1/add-payment-method`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'apikey': supabaseAnonKey,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ userId: user.id }),
-      }).catch((fetchError) => {
-        // If fetch fails (network error, function not deployed, etc.)
-        throw new Error('Payment service unavailable. Edge functions need to be deployed to Supabase.');
-      });
+      // Check environment variables
+      if (!supabaseUrl || !supabaseAnonKey) {
+        throw new Error(
+          'Missing Supabase configuration. Please check your .env file has VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY. ' +
+          'Restart your dev server after updating .env file.'
+        );
+      }
+
+      let response: Response;
+      try {
+        response = await fetch(`${supabaseUrl}/functions/v1/add-payment-method`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'apikey': supabaseAnonKey,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ userId: user.id }),
+        });
+      } catch (fetchError: any) {
+        // Network error - can't reach Supabase
+        console.error('Connection error:', fetchError);
+        throw new Error(
+          `Connection failed: ${fetchError.message || 'Cannot reach Supabase'}. ` +
+          'Check: 1) Internet connection, 2) Supabase URL is correct, 3) Edge Functions are deployed. ' +
+          'See CONNECTION_ERRORS_FIX.md for help.'
+        );
+      }
 
       if (!response.ok) {
+        // Handle specific HTTP status codes
+        if (response.status === 404) {
+          throw new Error(
+            'Edge Function not found (404). Please deploy Edge Functions in Supabase Dashboard. ' +
+            'See CONNECTION_ERRORS_FIX.md for deployment instructions.'
+          );
+        }
+        if (response.status === 401 || response.status === 403) {
+          throw new Error(
+            'Authentication failed. Please log out and log back in, or check your Supabase API key.'
+          );
+        }
+        if (response.status === 500) {
+          const errorData = await response.json().catch(() => ({ error: 'Server error' }));
+          throw new Error(
+            `Server error: ${errorData.error || 'Edge Function failed'}. ` +
+            'Check Edge Function logs in Supabase Dashboard.'
+          );
+        }
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || 'Failed to create setup intent');
+        throw new Error(
+          `Request failed (${response.status}): ${errorData.error || 'Unknown error'}`
+        );
       }
 
       const { clientSecret } = await response.json();
@@ -95,7 +132,10 @@ function CardForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: ()
           if (!saveResponse.ok) {
             const errorData = await saveResponse.json().catch(() => ({ error: 'Unknown error' }));
             console.error('Failed to save payment method:', errorData);
-            // Don't throw - setup intent succeeded, payment method might be saved via webhook
+            // Log but don't throw - setup intent succeeded, payment method might be saved via webhook
+            if (saveResponse.status === 404) {
+              console.warn('Edge Function not deployed. Payment method saved to Stripe but not to database.');
+            }
           }
         }
         
@@ -207,7 +247,7 @@ function PaymentMethodsList() {
       if (error) throw error;
 
       setMethods(methods.filter((m) => m.id !== methodId));
-    } catch (error) {
+    } catch {
       alert('Failed to remove payment method');
     } finally {
       setDeleting(null);
@@ -224,7 +264,7 @@ function PaymentMethodsList() {
       if (error) throw error;
 
       loadPaymentMethods();
-    } catch (error) {
+    } catch {
       alert('Failed to set default payment method');
     }
   };

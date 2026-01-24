@@ -130,21 +130,34 @@ export function ActiveDriverRide() {
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
         const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+        if (!supabaseUrl || !supabaseAnonKey) {
+          console.error('Missing Supabase configuration. Cannot capture payment.');
+          return;
+        }
+
         try {
+          const { data: { session } } = await supabase.auth.getSession();
           const paymentResponse = await fetch(`${supabaseUrl}/functions/v1/capture-payment`, {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${supabaseAnonKey}`,
+              'Authorization': `Bearer ${session?.access_token || supabaseAnonKey}`,
+              'apikey': supabaseAnonKey,
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({ rideId: ride.id }),
           });
 
           if (!paymentResponse.ok) {
-            console.error('Failed to capture payment');
+            if (paymentResponse.status === 404) {
+              console.error('Edge Function not found. Deploy capture-payment function.');
+            } else {
+              const errorData = await paymentResponse.json().catch(() => ({ error: 'Unknown error' }));
+              console.error('Failed to capture payment:', errorData.error || `Status ${paymentResponse.status}`);
+            }
           }
-        } catch (err) {
-          console.error('Error capturing payment:', err);
+        } catch (err: any) {
+          console.error('Connection error capturing payment:', err.message || err);
+          console.error('Check internet connection and Edge Functions deployment.');
         }
 
         const { data: profile } = await supabase
