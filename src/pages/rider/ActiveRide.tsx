@@ -380,6 +380,15 @@ export function ActiveRide() {
             </div>
             <h3 className="text-2xl font-bold text-gray-900 mb-2">{statusInfo.title}</h3>
             <p className="text-gray-600">{statusInfo.description}</p>
+            {/* Debug info - shows in development */}
+            {process.env.NODE_ENV === 'development' && (
+              <div className="mt-3 text-xs text-gray-400 space-y-1">
+                <div>DB Status: <strong>{ride.status}</strong></div>
+                <div>Driver ID: <strong>{ride.driver_id || 'None'}</strong></div>
+                <div>Effective Status: <strong>{effectiveStatus}</strong></div>
+                <div>Has Driver: <strong>{hasDriver ? 'Yes' : 'No'}</strong></div>
+              </div>
+            )}
           </div>
         </Card>
 
