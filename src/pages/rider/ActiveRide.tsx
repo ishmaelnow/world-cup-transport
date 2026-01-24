@@ -46,9 +46,11 @@ export function ActiveRide() {
         (payload) => {
           const updatedRide = payload.new as Ride;
           setRide(updatedRide);
+          // If driver is assigned, load driver info and show chat
           if (updatedRide.driver_id) {
-            loadDriver(updatedRide.driver_id);
-            setShowChat(true); // Show chat when driver is assigned via realtime
+            loadDriver(updatedRide.driver_id).then(() => {
+              setShowChat(true); // Show chat when driver is loaded
+            });
           }
         }
       )
