@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '../../components/Layout';
 import { Button } from '../../components/Button';
@@ -27,6 +27,12 @@ export function ActiveRide() {
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [hasRated, setHasRated] = useState(false);
   const [showChat, setShowChat] = useState(true); // Show chat by default when driver is assigned
+  const rideRef = useRef<Ride | null>(null); // Ref to always get latest ride state
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    rideRef.current = ride;
+  }, [ride]);
 
   useEffect(() => {
     if (!rideId) return;
@@ -34,9 +40,10 @@ export function ActiveRide() {
     loadRide();
 
     // AGGRESSIVE polling - check every 1 second if no driver yet
-    // This ensures we catch driver assignment even if realtime fails
+    // Use ref to avoid stale closure issues
     const pollInterval = setInterval(() => {
-      if (ride && !ride.driver_id && (ride.status === 'matching' || ride.status === 'requested')) {
+      const currentRide = rideRef.current;
+      if (currentRide && !currentRide.driver_id && (currentRide.status === 'matching' || currentRide.status === 'requested')) {
         console.log('🔄 Polling for driver assignment...');
         loadRide(false); // Don't show loading spinner on poll
       }
