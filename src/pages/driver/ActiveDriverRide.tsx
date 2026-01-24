@@ -113,6 +113,8 @@ export function ActiveDriverRide() {
       } else if (newStatus === 'canceled') {
         updates.canceled_at = new Date().toISOString();
         updates.canceled_by = 'driver';
+        updates.driver_id = null;  // Remove driver assignment
+        updates.status = 'matching';  // Put back in queue for other drivers
       }
 
       const { error } = await supabase
@@ -354,7 +356,7 @@ export function ActiveDriverRide() {
           <Button
             variant="danger"
             onClick={() => {
-              if (confirm('Are you sure you want to cancel this trip? This action cannot be undone.')) {
+              if (confirm('Are you sure you want to cancel this trip? It will be returned to the queue for other drivers.')) {
                 updateRideStatus('canceled');
               }
             }}
@@ -364,24 +366,6 @@ export function ActiveDriverRide() {
             className="mt-2"
           >
             Cancel Trip
-          </Button>
-        )}
-
-        {/* Test/Dev: Quick Complete Button - Remove in production */}
-        {ride.status !== 'completed' && ride.status !== 'canceled' && (
-          <Button
-            variant="secondary"
-            onClick={() => {
-              if (confirm('Skip to complete trip? (For testing only)')) {
-                updateRideStatus('completed');
-              }
-            }}
-            disabled={updating}
-            fullWidth
-            size="sm"
-            className="mt-2 border-dashed"
-          >
-            ⚡ Quick Complete (Test)
           </Button>
         )}
 
