@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '../../components/Layout';
 import { Button } from '../../components/Button';
@@ -60,33 +60,37 @@ export function ActiveRide() {
         (payload) => {
           console.log('📡 Realtime UPDATE received:', payload);
           const updatedRide = payload.new as Ride;
-          const previousDriverId = ride?.driver_id;
           
-          console.log('📡 Realtime ride update:', {
-            previousDriverId,
-            newDriverId: updatedRide.driver_id,
-            previousStatus: ride?.status,
-            newStatus: updatedRide.status,
-            hasDriver: !!updatedRide.driver_id
-          });
-          
-          setRide(updatedRide);
-          
-          // If driver is assigned (new or changed), load driver info and show chat
-          if (updatedRide.driver_id) {
-            console.log('🚗 Driver assigned via realtime, loading profile:', updatedRide.driver_id);
-            loadDriver(updatedRide.driver_id).then(() => {
-              console.log('✅ Driver profile loaded, showing chat');
-              setShowChat(true); // Show chat when driver is loaded
-            }).catch(err => {
-              console.error('❌ Error loading driver:', err);
+          // Use functional setState to ensure we get the latest ride state
+          setRide((currentRide) => {
+            const previousDriverId = currentRide?.driver_id;
+            
+            console.log('📡 Realtime ride update:', {
+              previousDriverId,
+              newDriverId: updatedRide.driver_id,
+              previousStatus: currentRide?.status,
+              newStatus: updatedRide.status,
+              hasDriver: !!updatedRide.driver_id,
+              driverChanged: updatedRide.driver_id !== previousDriverId
             });
-          } else if (previousDriverId) {
-            // Driver removed
-            console.log('⚠️ Driver removed from ride');
-            setDriver(null);
-            setShowChat(false);
-          }
+            
+            // Load driver if assigned
+            if (updatedRide.driver_id && updatedRide.driver_id !== previousDriverId) {
+              console.log('🚗 Driver assigned via realtime, loading profile:', updatedRide.driver_id);
+              loadDriver(updatedRide.driver_id).then(() => {
+                console.log('✅ Driver profile loaded, showing chat');
+                setShowChat(true);
+              }).catch(err => {
+                console.error('❌ Error loading driver:', err);
+              });
+            } else if (!updatedRide.driver_id && previousDriverId) {
+              console.log('⚠️ Driver removed from ride');
+              setDriver(null);
+              setShowChat(false);
+            }
+            
+            return updatedRide;
+          });
         }
       )
       .subscribe((status) => {
@@ -323,66 +327,65 @@ export function ActiveRide() {
     );
   }
 
-  // CRITICAL: Check driver_id FIRST - if it exists, driver IS assigned, period.
-  // Don't trust status alone - driver_id is the source of truth
-  const hasDriver = ride.driver_id != null && ride.driver_id !== '';
-  
-  // If driver_id exists, ALWAYS show "Driver Assigned" regardless of status
-  // This handles cases where status update fails or is delayed
-  let effectiveStatus = ride.status;
-  if (hasDriver) {
-    // Driver is assigned - force to accepted or higher
-    if (ride.status === 'matching' || ride.status === 'requested') {
-      effectiveStatus = 'accepted';
-      console.log('✅ Driver assigned but status not updated - forcing to accepted:', { 
-        driver_id: ride.driver_id, 
-        db_status: ride.status, 
-        effectiveStatus 
-      });
+  // CRITICAL: Use useMemo to recalculate on EVERY ride change
+  // This ensures UI updates when driver_id changes
+  const { hasDriver, effectiveStatus, statusInfo } = useMemo(() => {
+    const hasDriverValue = ride.driver_id != null && ride.driver_id !== '';
+    
+    let effectiveStatusValue = ride.status;
+    if (hasDriverValue && (ride.status === 'matching' || ride.status === 'requested')) {
+      effectiveStatusValue = 'accepted';
     }
-    // If status is already accepted/arriving/in_progress, keep it
-  } else {
-    // No driver - keep original status
-    console.log('⏳ No driver assigned:', { status: ride.status });
-  }
-
-  const statusInfo = {
-    matching: {
-      title: 'Finding Your Driver',
-      description: 'Searching for nearby available drivers...',
-      color: 'blue',
-    },
-    requested: {
-      title: 'Finding Your Driver',
-      description: 'Searching for nearby available drivers...',
-      color: 'blue',
-    },
-    accepted: {
-      title: 'Driver Assigned',
-      description: 'Your driver is on the way to pick you up',
-      color: 'green',
-    },
-    arriving: {
-      title: 'Driver Arriving',
-      description: 'Your driver is arriving at pickup location',
-      color: 'green',
-    },
-    in_progress: {
-      title: 'Trip in Progress',
-      description: 'Enjoy your ride!',
-      color: 'blue',
-    },
-  }[effectiveStatus] || { title: '', description: '', color: 'gray' };
-  
-  // Debug logging after statusInfo is defined
-  console.log('Rider page status check:', {
-    rideId: ride.id,
-    driver_id: ride.driver_id,
-    hasDriver,
-    db_status: ride.status,
-    effectiveStatus,
-    statusInfo_title: statusInfo.title
-  });
+    
+    const statusInfoMap: Record<string, { title: string; description: string; color: string }> = {
+      matching: {
+        title: 'Finding Your Driver',
+        description: 'Searching for nearby available drivers...',
+        color: 'blue',
+      },
+      requested: {
+        title: 'Finding Your Driver',
+        description: 'Searching for nearby available drivers...',
+        color: 'blue',
+      },
+      accepted: {
+        title: 'Driver Assigned',
+        description: 'Your driver is on the way to pick you up',
+        color: 'green',
+      },
+      arriving: {
+        title: 'Driver Arriving',
+        description: 'Your driver is arriving at pickup location',
+        color: 'green',
+      },
+      in_progress: {
+        title: 'Trip in Progress',
+        description: 'Enjoy your ride!',
+        color: 'blue',
+      },
+    };
+    
+    const statusInfoValue = statusInfoMap[effectiveStatusValue] || { 
+      title: `Status: ${effectiveStatusValue}`, 
+      description: 'Ride in progress', 
+      color: 'gray' 
+    };
+    
+    console.log('🎯 Status calculation:', {
+      rideId: ride.id,
+      driver_id: ride.driver_id,
+      hasDriver: hasDriverValue,
+      db_status: ride.status,
+      effectiveStatus: effectiveStatusValue,
+      statusInfo_title: statusInfoValue.title
+    });
+    
+    return {
+      hasDriver: hasDriverValue,
+      effectiveStatus: effectiveStatusValue,
+      statusInfo: statusInfoValue
+    };
+  }, [ride.id, ride.driver_id, ride.status]); // Recalculate when ANY of these change
 
   const getStatusBgClass = () => {
     if (statusInfo.color === 'blue') return 'bg-blue-100';
