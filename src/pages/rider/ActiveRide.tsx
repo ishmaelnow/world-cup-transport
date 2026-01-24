@@ -268,68 +268,23 @@ export function ActiveRide() {
     setShowRatingModal(false);
   };
 
-  if (loading || !ride) {
-    return (
-      <Layout title="Loading...">
-        <div className="text-center py-12">Loading ride details...</div>
-      </Layout>
-    );
-  }
-
-  if (ride.status === 'completed') {
-    return (
-      <Layout title="Ride Completed">
-        <Card>
-          <div className="text-center py-8">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Car className="text-green-600" size={32} />
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-2">Trip Completed!</h3>
-            <p className="text-gray-600 mb-6">Thank you for riding with World Cup Transport</p>
-
-            <div className="max-w-md mx-auto space-y-3 text-left mb-6">
-              <div className="flex justify-between py-2 border-b border-gray-200">
-                <span className="text-gray-600">Total Fare</span>
-                <span className="font-bold text-xl">
-                  {formatCurrency(ride.fare_final || ride.fare_estimate)}
-                </span>
-              </div>
-              <div className="flex justify-between py-2">
-                <span className="text-gray-600">Distance</span>
-                <span className="font-medium">{ride.distance_miles.toFixed(1)} mi</span>
-              </div>
-            </div>
-
-            <Button onClick={() => navigate('/rider')} size="lg">
-              Request Another Ride
-            </Button>
-          </div>
-        </Card>
-      </Layout>
-    );
-  }
-
-  if (ride.status === 'canceled') {
-    return (
-      <Layout title="Ride Canceled">
-        <Card>
-          <div className="text-center py-8">
-            <h3 className="text-2xl font-bold text-gray-900 mb-4">Ride Canceled</h3>
-            <p className="text-gray-600 mb-6">
-              This ride was canceled by {ride.canceled_by}
-            </p>
-            <Button onClick={() => navigate('/rider')} size="lg">
-              Request a New Ride
-            </Button>
-          </div>
-        </Card>
-      </Layout>
-    );
-  }
-
-  // CRITICAL: Use useMemo to recalculate on EVERY ride change
-  // This ensures UI updates when driver_id changes
+  // CRITICAL: Use useMemo BEFORE any early returns
+  // This ensures hooks are always called in the same order
+  // Calculate status even if ride is null (will use defaults)
   const { hasDriver, effectiveStatus, statusInfo } = useMemo(() => {
+    // Handle null ride case
+    if (!ride) {
+      return {
+        hasDriver: false,
+        effectiveStatus: 'matching',
+        statusInfo: {
+          title: 'Loading...',
+          description: 'Loading ride details...',
+          color: 'gray'
+        }
+      };
+    }
+    
     const hasDriverValue = ride.driver_id != null && ride.driver_id !== '';
     
     let effectiveStatusValue = ride.status;
