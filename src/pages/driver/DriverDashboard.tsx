@@ -75,6 +75,7 @@ export function DriverDashboard() {
       .from('rides')
       .select('*')
       .in('status', ['matching', 'requested'])
+      .is('driver_id', null) // CRITICAL: Only show rides without a driver
       .order('requested_at', { ascending: true })
       .limit(5);
 
@@ -93,7 +94,8 @@ export function DriverDashboard() {
         },
         (payload) => {
           const newRide = payload.new as Ride;
-          if (newRide.status === 'matching' || newRide.status === 'requested') {
+          // Only add if status is matching/requested AND no driver assigned
+          if ((newRide.status === 'matching' || newRide.status === 'requested') && !newRide.driver_id) {
             setAvailableRides((prev) => [newRide, ...prev].slice(0, 5));
           }
         }
@@ -107,7 +109,8 @@ export function DriverDashboard() {
         },
         (payload) => {
           const updatedRide = payload.new as Ride;
-          if (updatedRide.status !== 'matching' && updatedRide.status !== 'requested') {
+          // Remove from list if: status changed OR driver assigned
+          if (updatedRide.status !== 'matching' && updatedRide.status !== 'requested' || updatedRide.driver_id) {
             setAvailableRides((prev) => prev.filter((r) => r.id !== updatedRide.id));
           }
         }
@@ -200,8 +203,8 @@ export function DriverDashboard() {
           accepted_at: new Date().toISOString(),
         })
         .eq('id', rideId)
-        .eq('status', ride.status)
-        .is('driver_id', null)
+        .in('status', ['matching', 'requested']) // More flexible: accept if status is matching OR requested
+        .is('driver_id', null) // CRITICAL: Only accept if no driver assigned yet
         .select(); // Return updated row to verify
 
       if (error) {
