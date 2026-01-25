@@ -172,12 +172,18 @@ export function RiderDashboard() {
         );
       }
 
+      // Get session for authentication
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session. Please log in again.');
+      }
+
       let paymentResponse: Response;
       try {
         paymentResponse = await fetch(`${supabaseUrl}/functions/v1/create-payment-intent`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${session?.access_token || supabaseAnonKey}`,
+            'Authorization': `Bearer ${session.access_token}`,
             'apikey': supabaseAnonKey,
             'Content-Type': 'application/json',
           },
