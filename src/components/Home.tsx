@@ -30,7 +30,7 @@ export function Home() {
           {features.map((feature, index) => (
             <div
               key={index}
-              className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
+            className="bg-white/92 backdrop-blur-md rounded-lg shadow-lg shadow-slate-900/10 border border-white/75 p-6 hover:bg-white transition-colors"
             >
               <h3 className="text-xl font-semibold text-gray-900 mb-2">{feature.title}</h3>
               <p className="text-gray-600">{feature.description}</p>
@@ -42,10 +42,10 @@ export function Home() {
       {/* Taxi Rates Section */}
       <section>
         <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">Taxi Rates</h2>
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        <div className="bg-white/92 backdrop-blur-md rounded-lg shadow-lg shadow-slate-900/10 border border-white/75 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-slate-50/90">
                 <tr>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Category</th>
                   <th className="px-6 py-4 text-right text-sm font-semibold text-gray-900">Price</th>
@@ -53,7 +53,7 @@ export function Home() {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {taxiRates.map((rate, index) => (
-                  <tr key={index} className="hover:bg-gray-50 transition-colors">
+                  <tr key={index} className="hover:bg-slate-50/80 transition-colors">
                     <td className="px-6 py-4 text-sm text-gray-700">{rate.category}</td>
                     <td className="px-6 py-4 text-sm font-medium text-gray-900 text-right">{rate.price}</td>
                   </tr>

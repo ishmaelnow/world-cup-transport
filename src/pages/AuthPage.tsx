@@ -7,6 +7,7 @@ import { Car, X } from 'lucide-react';
 import type { UserRole } from '../lib/database.types';
 import { PrivacyPolicy } from './PrivacyPolicy';
 import { Home } from '../components/Home';
+import { AuthMapBackground } from '../components/AuthMapBackground';
 
 export function AuthPage({ startupError }: { startupError?: string | null }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -78,11 +79,12 @@ export function AuthPage({ startupError }: { startupError?: string | null }) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100">
-      <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="relative isolate min-h-screen overflow-hidden">
+      <AuthMapBackground />
+      <div className="relative z-10 max-w-7xl mx-auto px-4 py-8">
         {/* Header Section */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-full mb-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-full mb-4 shadow-lg shadow-blue-600/20">
             <Car className="text-white" size={32} />
           </div>
           <h1 className="text-4xl font-bold text-gray-900">World Cup Transport</h1>
@@ -92,7 +94,7 @@ export function AuthPage({ startupError }: { startupError?: string | null }) {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
           {/* Login/Signup Form */}
           <div className="lg:sticky lg:top-8 h-fit">
-            <div className="bg-white rounded-xl shadow-lg p-8">
+            <div className="bg-white/94 backdrop-blur-md rounded-xl shadow-xl shadow-slate-900/12 border border-white/80 p-8">
               <div className="flex gap-2 mb-6">
                 <Button
                   variant={isLogin ? 'primary' : 'secondary'}
@@ -193,7 +195,7 @@ export function AuthPage({ startupError }: { startupError?: string | null }) {
                     <div className="w-full border-t border-gray-200" />
                   </div>
                   <div className="relative flex justify-center text-sm">
-                    <span className="bg-white px-3 text-gray-500">or</span>
+                    <span className="bg-white/94 px-3 text-gray-500">or</span>
                   </div>
                 </div>
 
