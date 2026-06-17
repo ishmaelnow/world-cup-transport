@@ -11,6 +11,10 @@ import type { Database } from '../../lib/database.types';
 import { CreditCard, Trash2, CheckCircle, AlertCircle } from 'lucide-react';
 
 type PaymentMethod = Database['public']['Tables']['payment_methods']['Row'];
+type PaymentLocationState = {
+  rideId?: string;
+  returnTo?: string;
+};
 
 function CardForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: () => void }) {
   const stripe = useStripe();
@@ -53,20 +57,27 @@ function CardForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: ()
 
       let response: Response;
       try {
-        response = await fetch(`${supabaseUrl}/functions/v1/add-payment-method`, {
+        const requestUrl = `${supabaseUrl}/functions/v1/add-payment-method`;
+        const payload = { userId: user.id };
+        console.log('SUPABASE_URL:', import.meta.env.VITE_SUPABASE_URL);
+        console.log('REQUEST_URL:', requestUrl);
+        console.log('PAYLOAD:', payload);
+
+        response = await fetch(requestUrl, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${session.access_token}`,
             'apikey': supabaseAnonKey,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ userId: user.id }),
+          body: JSON.stringify(payload),
         });
-      } catch (fetchError: any) {
+      } catch (fetchError) {
+        const message = fetchError instanceof Error ? fetchError.message : 'Cannot reach Supabase';
         // Network error - can't reach Supabase
         console.error('Connection error:', fetchError);
         throw new Error(
-          `Connection failed: ${fetchError.message || 'Cannot reach Supabase'}. ` +
+          `Connection failed: ${message}. ` +
           'Check: 1) Internet connection, 2) Supabase URL is correct, 3) Edge Functions are deployed. ' +
           'See CONNECTION_ERRORS_FIX.md for help.'
         );
@@ -116,17 +127,23 @@ function CardForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: ()
         
         if (paymentMethodId) {
           // Call function again to save the payment method
-          const saveResponse = await fetch(`${supabaseUrl}/functions/v1/add-payment-method`, {
+          const requestUrl = `${supabaseUrl}/functions/v1/add-payment-method`;
+          const payload = {
+            userId: user.id,
+            paymentMethodId: paymentMethodId
+          };
+          console.log('SUPABASE_URL:', import.meta.env.VITE_SUPABASE_URL);
+          console.log('REQUEST_URL:', requestUrl);
+          console.log('PAYLOAD:', payload);
+
+          const saveResponse = await fetch(requestUrl, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${session.access_token}`,
               'apikey': supabaseAnonKey,
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ 
-              userId: user.id,
-              paymentMethodId: paymentMethodId 
-            }),
+            body: JSON.stringify(payload),
           });
 
           if (!saveResponse.ok) {
@@ -142,9 +159,9 @@ function CardForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: ()
         setLoading(false);
         onSuccess();
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('Payment method error:', err);
-      setError(err.message || 'Failed to add payment method');
+      setError(err instanceof Error ? err.message : 'Failed to add payment method');
       setLoading(false);
     }
   };
@@ -341,11 +358,11 @@ export function PaymentMethods() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [hasPaymentMethods, setHasPaymentMethods] = useState(false);
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   
   // Get rideId from navigation state (if coming from booking)
-  const rideId = (location.state as any)?.rideId;
-  const returnTo = (location.state as any)?.returnTo;
+  const paymentState = location.state as PaymentLocationState | null;
+  const rideId = paymentState?.rideId;
+  const returnTo = paymentState?.returnTo;
 
   // Load payment methods
   useEffect(() => {
@@ -356,13 +373,14 @@ export function PaymentMethods() {
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
-      setPaymentMethods(data || []);
       setHasPaymentMethods((data?.length || 0) > 0);
     };
     loadPaymentMethods();
   }, [user, refreshKey]);
 
   const handlePaymentSuccess = async () => {
+    if (!user) return;
+
     setStatusMessage({ type: 'success', text: 'Payment method added successfully!' });
     setShowAddForm(false);
     setRefreshKey((k) => k + 1);
@@ -371,11 +389,10 @@ export function PaymentMethods() {
     const { data } = await supabase
       .from('payment_methods')
       .select('*')
-      .eq('user_id', user?.id)
+      .eq('user_id', user.id)
       .order('created_at', { ascending: false });
     
     const updatedMethods = data || [];
-    setPaymentMethods(updatedMethods);
     setHasPaymentMethods(updatedMethods.length > 0);
 
     // If we have a rideId, complete the payment intent

@@ -5,13 +5,19 @@ import { Button } from '../../components/Button';
 import { supabase } from '../../lib/supabase';
 import { formatCurrency } from '../../lib/fare';
 import type { Database } from '../../lib/database.types';
-import { Users, Car, DollarSign, TrendingUp, MapPin, Clock, MessageSquare } from 'lucide-react';
+import { Users, Car, DollarSign, TrendingUp, Clock, MessageSquare } from 'lucide-react';
 import { Chat } from '../../components/Chat';
 
 type Ride = Database['public']['Tables']['rides']['Row'];
 type DriverProfile = Database['public']['Tables']['driver_profiles']['Row'];
 type Profile = Database['public']['Tables']['profiles']['Row'];
 type DriverApplication = Database['public']['Tables']['driver_applications']['Row'];
+type DriverApplicationUpdate = Database['public']['Tables']['driver_applications']['Update'];
+type EarningRow = Database['public']['Tables']['earnings']['Row'];
+type EarningWithRide = EarningRow & {
+  ride?: Pick<Ride, 'pickup_address' | 'dropoff_address'> | null;
+};
+type ChatRecipientType = 'rider' | 'driver' | 'admin' | 'all';
 
 interface Metrics {
   totalRides: number;
@@ -21,6 +27,10 @@ interface Metrics {
   onlineDrivers: number;
   totalRevenue: number;
   completionRate: number;
+}
+
+function getChatRecipientType(role: string | undefined): ChatRecipientType {
+  return role === 'rider' || role === 'driver' || role === 'admin' ? role : 'admin';
 }
 
 export function AdminDashboard() {
@@ -36,7 +46,7 @@ export function AdminDashboard() {
   const [rides, setRides] = useState<Ride[]>([]);
   const [drivers, setDrivers] = useState<DriverProfile[]>([]);
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
-  const [earnings, setEarnings] = useState<any[]>([]);
+  const [earnings, setEarnings] = useState<EarningWithRide[]>([]);
   const [applications, setApplications] = useState<DriverApplication[]>([]);
   const [activeTab, setActiveTab] = useState<'overview' | 'rides' | 'drivers' | 'applications' | 'verification' | 'payments' | 'chat'>('overview');
   const [loading, setLoading] = useState(true);
@@ -50,6 +60,13 @@ export function AdminDashboard() {
 
   const loadData = async () => {
     setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    console.log('[admin] loading dashboard', {
+      userId: user?.id,
+      email: user?.email,
+      jwtRole: user?.app_metadata?.role,
+      appMetadata: user?.app_metadata,
+    });
     await Promise.all([loadMetrics(), loadRides(), loadDrivers(), loadProfiles(), loadEarnings(), loadApplications()]);
     setLoading(false);
   };
@@ -61,13 +78,13 @@ export function AdminDashboard() {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error loading applications:', error);
+      console.error('[admin] error loading applications:', error);
       alert(`Error loading applications: ${error.message}`);
       setApplications([]);
       return;
     }
 
-    console.log('Loaded applications:', data);
+    console.log('[admin] loaded applications:', data);
     setApplications(data || []);
   };
 
@@ -172,7 +189,7 @@ export function AdminDashboard() {
         return;
       }
 
-      const updateData: any = {
+      const updateData: DriverApplicationUpdate = {
         status,
         reviewed_by: user.id,
         reviewed_at: new Date().toISOString(),
@@ -203,9 +220,9 @@ export function AdminDashboard() {
       await loadDrivers();
       
       alert(`Application ${status} successfully!`);
-    } catch (err: any) {
+    } catch (err) {
       console.error('Unexpected error:', err);
-      alert(`Unexpected error: ${err.message}`);
+      alert(`Unexpected error: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
   };
 
@@ -232,15 +249,18 @@ export function AdminDashboard() {
       return;
     }
 
-    await supabase.from('notifications').insert({
-      user_id: drivers.find((d) => d.id === driverId)?.user_id,
-      title: status === 'approved' ? 'Driver Application Approved' : 'Driver Application Rejected',
-      message:
-        status === 'approved'
-          ? 'Your driver application has been approved. You can now start accepting rides!'
-          : `Your driver application has been rejected. ${notes}`,
-      type: 'verification',
-    });
+    const driverUserId = drivers.find((d) => d.id === driverId)?.user_id;
+    if (driverUserId) {
+      await supabase.from('notifications').insert({
+        user_id: driverUserId,
+        title: status === 'approved' ? 'Driver Application Approved' : 'Driver Application Rejected',
+        message:
+          status === 'approved'
+            ? 'Your driver application has been approved. You can now start accepting rides!'
+            : `Your driver application has been rejected. ${notes}`,
+        type: 'verification',
+      });
+    }
 
     loadDrivers();
   };
@@ -573,8 +593,9 @@ export function AdminDashboard() {
                         {formatCurrency(ride.fare_final || ride.fare_estimate)}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-500">
-                        {new Date(ride.requested_at).toLocaleDateString()}{' '}
-                        {new Date(ride.requested_at).toLocaleTimeString()}
+                        {ride.requested_at
+                          ? `${new Date(ride.requested_at).toLocaleDateString()} ${new Date(ride.requested_at).toLocaleTimeString()}`
+                          : ''}
                       </td>
                     </tr>
                   ))}
@@ -850,12 +871,12 @@ export function AdminDashboard() {
                           )}
                         </td>
                         <td className="px-4 py-3 text-sm">{driver.total_trips}</td>
-                        <td className="px-4 py-3 text-sm">⭐ {driver.rating_avg.toFixed(1)}</td>
+                        <td className="px-4 py-3 text-sm">⭐ {(driver.rating_avg || 0).toFixed(1)}</td>
                         <td className="px-4 py-3">
                           <Button
                             variant={driver.is_active ? 'danger' : 'success'}
                             size="sm"
-                            onClick={() => handleDeactivateUser(driver.user_id, driver.is_active)}
+                            onClick={() => handleDeactivateUser(driver.user_id, !!driver.is_active)}
                           >
                             {driver.is_active ? 'Deactivate' : 'Activate'}
                           </Button>
@@ -1037,7 +1058,7 @@ export function AdminDashboard() {
                   <div>
                     <p className="text-sm text-gray-600">Total Earnings</p>
                     <p className="text-2xl font-bold">
-                      {formatCurrency(earnings.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0))}
+                      {formatCurrency(earnings.reduce((sum, e) => sum + (e.amount || 0), 0))}
                     </p>
                   </div>
                 </div>
@@ -1054,7 +1075,7 @@ export function AdminDashboard() {
                       {formatCurrency(
                         earnings
                           .filter((e) => e.status === 'pending')
-                          .reduce((sum, e) => sum + parseFloat(e.amount || 0), 0)
+                          .reduce((sum, e) => sum + (e.amount || 0), 0)
                       )}
                     </p>
                   </div>
@@ -1070,7 +1091,7 @@ export function AdminDashboard() {
                     <p className="text-sm text-gray-600">Platform Fees</p>
                     <p className="text-2xl font-bold">
                       {formatCurrency(
-                        earnings.reduce((sum, e) => sum + parseFloat(e.platform_fee || 0), 0)
+                        earnings.reduce((sum, e) => sum + (e.platform_fee || 0), 0)
                       )}
                     </p>
                   </div>
@@ -1168,7 +1189,7 @@ export function AdminDashboard() {
                             </span>
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-500">
-                            {new Date(earning.created_at).toLocaleDateString()}
+                            {earning.created_at ? new Date(earning.created_at).toLocaleDateString() : ''}
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex space-x-2">
@@ -1191,7 +1212,9 @@ export function AdminDashboard() {
                               )}
                               {earning.status === 'paid' && (
                                 <span className="text-xs text-green-600">
-                                  Paid on {new Date(earning.paid_at).toLocaleDateString()}
+                                  {earning.paid_at
+                                    ? `Paid on ${new Date(earning.paid_at).toLocaleDateString()}`
+                                    : 'Paid'}
                                 </span>
                               )}
                             </div>
@@ -1256,8 +1279,8 @@ export function AdminDashboard() {
                   <div className="h-[500px]">
                     <Chat
                       recipientId={selectedChatRecipient}
-                      recipientType={profiles[selectedChatRecipient]?.role || 'admin'}
-                      title={`Chat with ${profiles[selectedChatRecipient]?.full_name || profiles[selectedChatRecipient]?.email || 'User'}`}
+                      recipientType={getChatRecipientType(profiles[selectedChatRecipient]?.role)}
+                      title={`Chat with ${profiles[selectedChatRecipient]?.full_name || profiles[selectedChatRecipient]?.id || 'User'}`}
                     />
                   </div>
                 </div>
@@ -1280,7 +1303,7 @@ export function AdminDashboard() {
                           >
                             <div className="flex-1">
                               <div className="font-medium text-sm">
-                                {profile.full_name || profile.email}
+                                {profile.full_name || profile.id}
                               </div>
                               <div className="text-xs text-gray-500 capitalize">
                                 {profile.role}
@@ -1317,7 +1340,7 @@ export function AdminDashboard() {
                                 {ride.pickup_address.split(',')[0]} → {ride.dropoff_address.split(',')[0]}
                               </div>
                               <div className="text-xs text-gray-500">
-                                Rider: {profiles[ride.rider_id]?.full_name || profiles[ride.rider_id]?.email || 'Unknown'}
+                                Rider: {profiles[ride.rider_id]?.full_name || profiles[ride.rider_id]?.id || 'Unknown'}
                               </div>
                               <div className="text-xs text-gray-400 mt-1">
                                 Status: <span className="capitalize">{ride.status.replace('_', ' ')}</span>

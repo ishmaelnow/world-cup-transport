@@ -18,7 +18,6 @@ export function DriverDashboard() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<DriverProfile | null>(null);
   const [availableRides, setAvailableRides] = useState<Ride[]>([]);
-  const [activeRide, setActiveRide] = useState<Ride | null>(null);
   const [loading, setLoading] = useState(true);
   const [updatingAvailability, setUpdatingAvailability] = useState(false);
 
@@ -65,7 +64,6 @@ export function DriverDashboard() {
       .maybeSingle();
 
     if (data) {
-      setActiveRide(data);
       navigate(`/driver/ride/${data.id}`);
     }
   };
@@ -323,10 +321,12 @@ export function DriverDashboard() {
 
       console.log('✅ Ride accepted successfully:', data[0]);
       navigate(`/driver/ride/${rideId}`);
-    } catch (error: any) {
+    } catch (error) {
       console.error('❌ Exception accepting ride:', error);
-      console.error('Error stack:', error.stack);
-      alert(`Failed to accept ride: ${error.message || 'Unknown error'}`);
+      if (error instanceof Error) {
+        console.error('Error stack:', error.stack);
+      }
+      alert(`Failed to accept ride: ${error instanceof Error ? error.message : 'Unknown error'}`);
       loadAvailableRides();
     }
   };
@@ -384,7 +384,7 @@ export function DriverDashboard() {
               </div>
               <div>
                 <p className="text-sm text-gray-600">Rating</p>
-                <p className="text-2xl font-bold">{profile.rating_avg.toFixed(1)}</p>
+                <p className="text-2xl font-bold">{(profile.rating_avg || 0).toFixed(1)}</p>
               </div>
             </div>
           </Card>
@@ -484,7 +484,7 @@ export function DriverDashboard() {
                           {formatCurrency(ride.fare_estimate)}
                         </div>
                         <div className="text-xs text-gray-500">
-                          {ride.distance_miles.toFixed(1)} mi
+                          {(ride.distance_miles || 0).toFixed(1)} mi
                         </div>
                         {ride.scheduled_at && (
                           <div className="text-xs text-blue-600 mt-1 flex items-center justify-end gap-1">

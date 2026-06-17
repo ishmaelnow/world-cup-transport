@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, Navigation, History, CreditCard, User } from 'lucide-react';
+import { Home, Navigation, History, CreditCard } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 export function BottomNavigation() {
@@ -11,8 +11,6 @@ export function BottomNavigation() {
 
   const isRider = user.role === 'rider';
   const isDriver = user.role === 'driver';
-  const isAdmin = user.role === 'admin';
-
   // Don't show bottom nav on auth pages or active ride pages
   if (
     location.pathname === '/' ||
@@ -53,7 +51,7 @@ export function BottomNavigation() {
 
             return (
               <button
-                key={item.path}
+                key={`${item.path}-${item.label}`}
                 onClick={() => navigate(item.path)}
                 className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
                   isActive

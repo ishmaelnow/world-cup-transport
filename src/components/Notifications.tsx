@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import type { Database } from '../lib/database.types';
-import { Bell, X, Check } from 'lucide-react';
+import { Bell, X } from 'lucide-react';
 
 type Notification = Database['public']['Tables']['notifications']['Row'];
 
@@ -167,7 +167,9 @@ export function Notifications() {
                           </div>
                           <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
                           <p className="text-xs text-gray-400 mt-2">
-                            {new Date(notification.created_at).toLocaleString()}
+                            {notification.created_at
+                              ? new Date(notification.created_at).toLocaleString()
+                              : ''}
                           </p>
                         </div>
                       </div>

@@ -1,0 +1,2 @@
+-- Local development seed file.
+-- Add test data here after the schema is stable.

@@ -1,7 +1,7 @@
 import { ReactNode } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { signOut } from '../lib/auth';
-import { LogOut, User, Car, Navigation } from 'lucide-react';
+import { LogOut, Car, Navigation } from 'lucide-react';
 import { Button } from './Button';
 import { Notifications } from './Notifications';
 import { BottomNavigation } from './BottomNavigation';

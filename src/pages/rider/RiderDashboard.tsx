@@ -23,7 +23,6 @@ export function RiderDashboard() {
   const [dropoff, setDropoff] = useState<GeocodingResult | null>(null);
   const [fareEstimate, setFareEstimate] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
-  const [activeRide, setActiveRide] = useState<Ride | null>(null);
   const [canApplyDriver, setCanApplyDriver] = useState(false);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
@@ -62,7 +61,6 @@ export function RiderDashboard() {
       .maybeSingle();
 
     if (data) {
-      setActiveRide(data);
       navigate(`/rider/ride/${data.id}`);
     }
   };
@@ -128,27 +126,43 @@ export function RiderDashboard() {
         ? new Date(`${scheduledDate}T${scheduledTime}`).toISOString()
         : null;
 
+      const ridePayload = {
+        rider_id: user.id,
+        pickup_address: pickup.address,
+        pickup_lat: pickup.lat,
+        pickup_lng: pickup.lng,
+        dropoff_address: dropoff.address,
+        dropoff_lat: dropoff.lat,
+        dropoff_lng: dropoff.lng,
+        fare_estimate: fare,
+        distance_miles: distance,
+        duration_minutes: estimatedDuration,
+        status: 'matching' as const,
+        scheduled_at: scheduledAt,
+        vehicle_type: vehicleType,
+      };
+
+      console.log('[ride-request] insert', {
+        table: 'rides',
+        authenticatedUserId: user.id,
+        payload: ridePayload,
+      });
+
       const { data, error } = await supabase
         .from('rides')
-        .insert({
-          rider_id: user.id,
-          pickup_address: pickup.address,
-          pickup_lat: pickup.lat,
-          pickup_lng: pickup.lng,
-          dropoff_address: dropoff.address,
-          dropoff_lat: dropoff.lat,
-          dropoff_lng: dropoff.lng,
-          fare_estimate: fare,
-          distance_miles: distance,
-          duration_minutes: estimatedDuration,
-          status: 'matching',
-          scheduled_at: scheduledAt,
-          vehicle_type: vehicleType,
-        })
+        .insert(ridePayload)
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('[ride-request] rides insert failed', {
+          table: 'rides',
+          authenticatedUserId: user.id,
+          payload: ridePayload,
+          error,
+        });
+        throw error;
+      }
 
       // Step 2: Check for payment method AFTER ride is created
       if (paymentMethods.length === 0 || !selectedPaymentMethod) {
@@ -172,7 +186,6 @@ export function RiderDashboard() {
         );
       }
 
-      // Get session for authentication
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         throw new Error('No active session. Please log in again.');
@@ -180,21 +193,32 @@ export function RiderDashboard() {
 
       let paymentResponse: Response;
       try {
-        paymentResponse = await fetch(`${supabaseUrl}/functions/v1/create-payment-intent`, {
+        const requestUrl = `${supabaseUrl}/functions/v1/create-payment-intent`;
+        const payload = {
+          rideId: data.id,
+          paymentMethodId: selectedPaymentMethod
+        };
+
+        console.log('[ride-request] edge function request', {
+          table: 'payment-related records',
+          authenticatedUserId: user.id,
+          requestUrl,
+          payload,
+        });
+
+        paymentResponse = await fetch(requestUrl, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${session.access_token}`,
             'apikey': supabaseAnonKey,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            rideId: data.id,
-            paymentMethodId: selectedPaymentMethod
-          }),
+          body: JSON.stringify(payload),
         });
-      } catch (fetchError: any) {
+      } catch (fetchError) {
+        const message = fetchError instanceof Error ? fetchError.message : 'Cannot reach Supabase';
         throw new Error(
-          `Connection failed: ${fetchError.message || 'Cannot reach Supabase'}. ` +
+          `Connection failed: ${message}. ` +
           'Check internet connection and Edge Functions deployment. See CONNECTION_ERRORS_FIX.md'
         );
       }
@@ -207,6 +231,12 @@ export function RiderDashboard() {
           );
         }
         const errorData = await paymentResponse.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('[ride-request] create-payment-intent failed', {
+          table: 'payment-related records',
+          authenticatedUserId: user.id,
+          status: paymentResponse.status,
+          error: errorData,
+        });
         throw new Error(
           `Payment authorization failed (${paymentResponse.status}): ${errorData.error || 'Unknown error'}`
         );
@@ -492,7 +522,7 @@ function RideHistory({ userId }: { userId: string }) {
                   {ride.status.replace('_', ' ').toUpperCase()}
                 </span>
                 <span className="text-xs text-gray-500">
-                  {new Date(ride.requested_at).toLocaleDateString()}
+                  {ride.requested_at ? new Date(ride.requested_at).toLocaleDateString() : ''}
                 </span>
               </div>
             </div>

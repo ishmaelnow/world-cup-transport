@@ -37,6 +37,12 @@ Deno.serve(async (req: Request) => {
       apiVersion: '2023-10-16',
     });
 
+    const authHeader = req.headers.get('Authorization');
+    const token = authHeader?.replace('Bearer ', '') ?? '';
+    const { data: authData } = token
+      ? await supabase.auth.getUser(token)
+      : { data: { user: null } };
+
     const { rideId, paymentMethodId } = await req.json();
 
     if (!rideId || !paymentMethodId) {
@@ -99,18 +105,27 @@ Deno.serve(async (req: Request) => {
       },
     });
 
+    const rideUpdatePayload = {
+      payment_intent_id: paymentIntent.id,
+      payment_method_id: paymentMethodId,
+      payment_status: 'authorized',
+      platform_fee: platformFee / 100,
+      driver_earnings: driverEarnings / 100,
+    };
+
+    console.log('[create-payment-intent] update', {
+      table: 'rides',
+      authenticatedUserId: authData.user?.id ?? null,
+      payload: rideUpdatePayload,
+      rideId,
+    });
+
     await supabase
       .from('rides')
-      .update({
-        payment_intent_id: paymentIntent.id,
-        payment_method_id: paymentMethodId,
-        payment_status: 'authorized',
-        platform_fee: platformFee / 100,
-        driver_earnings: driverEarnings / 100,
-      })
+      .update(rideUpdatePayload)
       .eq('id', rideId);
 
-    await supabase.from('transactions').insert({
+    const transactionPayload = {
       ride_id: rideId,
       user_id: ride.rider_id,
       transaction_type: 'charge',
@@ -119,7 +134,15 @@ Deno.serve(async (req: Request) => {
       stripe_transaction_id: paymentIntent.id,
       status: 'pending',
       metadata: { platform_fee: platformFee / 100, driver_earnings: driverEarnings / 100 },
+    };
+
+    console.log('[create-payment-intent] insert', {
+      table: 'transactions',
+      authenticatedUserId: authData.user?.id ?? null,
+      payload: transactionPayload,
     });
+
+    await supabase.from('transactions').insert(transactionPayload);
 
     return new Response(
       JSON.stringify({
@@ -132,10 +155,11 @@ Deno.serve(async (req: Request) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error in create-payment-intent:', error);
+    const message = error instanceof Error ? error.message : 'Internal server error';
     return new Response(
-      JSON.stringify({ error: error.message || 'Internal server error' }),
+      JSON.stringify({ error: message }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

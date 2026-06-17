@@ -18,6 +18,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshUser = async () => {
     try {
       const currentUser = await getCurrentUser();
+      console.log('[auth-context] refreshUser result', currentUser);
       setUser(currentUser);
     } catch (error) {
       console.error('Error refreshing user:', error);
@@ -28,7 +29,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     refreshUser().finally(() => setLoading(false));
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('[auth-context] auth state change', {
+        event,
+        userId: session?.user.id,
+        email: session?.user.email,
+        jwtRole: session?.user.app_metadata?.role,
+        appMetadata: session?.user.app_metadata,
+      });
       (async () => {
         await refreshUser();
       })();

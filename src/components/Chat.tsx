@@ -11,7 +11,7 @@ type Message = Database['public']['Tables']['messages']['Row'];
 interface ChatProps {
   rideId?: string;
   recipientId?: string;
-  recipientType?: 'rider' | 'driver' | 'admin';
+  recipientType?: 'rider' | 'driver' | 'admin' | 'all';
   onClose?: () => void;
   title?: string;
 }

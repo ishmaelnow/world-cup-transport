@@ -129,9 +129,9 @@ export function DriverOnboarding() {
 
       alert('Application submitted successfully! You will be notified once an admin reviews your application.');
       await checkExistingApplication();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error submitting application:', error);
-      alert(error.message || 'Failed to submit application');
+      alert(error instanceof Error ? error.message : 'Failed to submit application');
     } finally {
       setLoading(false);
     }
@@ -160,9 +160,15 @@ export function DriverOnboarding() {
         title: 'Application Not Approved',
         message: existingApplication.rejection_reason || 'Your application was not approved. Please contact support for more information.',
       },
-    };
+    } as const;
 
-    const config = statusConfig[existingApplication.status];
+    const applicationStatus =
+      existingApplication.status === 'approved' ||
+      existingApplication.status === 'rejected' ||
+      existingApplication.status === 'pending'
+        ? existingApplication.status
+        : 'pending';
+    const config = statusConfig[applicationStatus];
     const Icon = config.icon;
 
     return (
@@ -198,10 +204,12 @@ export function DriverOnboarding() {
                       <Button 
                         onClick={async () => {
                           // Check if profile exists, if not wait a moment
+                          if (!user) return;
+
                           const { data: profileCheck } = await supabase
                             .from('driver_profiles')
                             .select('*')
-                            .eq('user_id', user?.id)
+                            .eq('user_id', user.id)
                             .maybeSingle();
                           
                           if (profileCheck) {

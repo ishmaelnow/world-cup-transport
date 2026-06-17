@@ -16,8 +16,11 @@ export function LocationInput({ label, value, onChange, placeholder, error }: Lo
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const cacheRef = useRef<Map<string, GeocodingResult[]>>(new Map());
+  const selectedAddressRef = useRef(value);
 
   useEffect(() => {
+    selectedAddressRef.current = value;
     setQuery(value);
   }, [value]);
 
@@ -33,23 +36,46 @@ export function LocationInput({ label, value, onChange, placeholder, error }: Lo
   }, []);
 
   useEffect(() => {
+    const controller = new AbortController();
+
     const searchTimer = setTimeout(async () => {
-      if (query.length >= 3) {
+      const normalizedQuery = query.trim();
+
+      if (normalizedQuery.length >= 5 && normalizedQuery !== selectedAddressRef.current) {
+        const cachedResults = cacheRef.current.get(normalizedQuery.toLowerCase());
+        if (cachedResults) {
+          setResults(cachedResults);
+          setIsOpen(true);
+          return;
+        }
+
         setIsLoading(true);
-        const searchResults = await searchAddress(query);
-        setResults(searchResults);
-        setIsOpen(true);
-        setIsLoading(false);
+
+        try {
+          const searchResults = await searchAddress(normalizedQuery, controller.signal);
+          cacheRef.current.set(normalizedQuery.toLowerCase(), searchResults);
+          setResults(searchResults);
+          setIsOpen(true);
+        } finally {
+          if (!controller.signal.aborted) {
+            setIsLoading(false);
+          }
+        }
       } else {
         setResults([]);
         setIsOpen(false);
+        setIsLoading(false);
       }
-    }, 300);
+    }, 800);
 
-    return () => clearTimeout(searchTimer);
+    return () => {
+      clearTimeout(searchTimer);
+      controller.abort();
+    };
   }, [query]);
 
   const handleSelect = (result: GeocodingResult) => {
+    selectedAddressRef.current = result.address;
     setQuery(result.address);
     onChange(result);
     setIsOpen(false);

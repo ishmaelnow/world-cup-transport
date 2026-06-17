@@ -11,6 +11,12 @@ import { ActiveDriverRide } from './pages/driver/ActiveDriverRide';
 import { DriverEarnings } from './pages/driver/DriverEarnings';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 
+function getHomePath(role: string | undefined) {
+  if (role === 'admin') return '/admin';
+  if (role === 'driver') return '/driver';
+  return '/rider';
+}
+
 function ProtectedRoute({
   children,
   requiredRole,
@@ -29,23 +35,43 @@ function ProtectedRoute({
   }
 
   if (!user) {
+    console.log('[route] unauthenticated; redirecting to /', { requiredRole });
     return <Navigate to="/" replace />;
   }
 
   if (requiredRole) {
+    console.log('[route] evaluating protected route', {
+      requiredRole,
+      userId: user.id,
+      email: user.email,
+      profileRole: user.role,
+      jwtRole: user.jwtRole,
+    });
+
     if (requiredRole === 'rider' && (user.role === 'rider' || user.role === 'driver')) {
+      console.log('[route] allowing rider route', { email: user.email, profileRole: user.role });
       return <>{children}</>;
     }
 
     if (requiredRole === 'driver' && user.role === 'driver') {
+      console.log('[route] allowing driver route', { email: user.email, profileRole: user.role });
       return <>{children}</>;
     }
 
     if (requiredRole === 'admin' && user.role === 'admin') {
+      console.log('[route] allowing admin route', { email: user.email, profileRole: user.role });
       return <>{children}</>;
     }
 
-    return <Navigate to={user.role === 'admin' ? '/admin' : '/rider'} replace />;
+    const redirectTo = getHomePath(user.role);
+    console.warn('[route] role mismatch; redirecting', {
+      requiredRole,
+      redirectTo,
+      email: user.email,
+      profileRole: user.role,
+      jwtRole: user.jwtRole,
+    });
+    return <Navigate to={redirectTo} replace />;
   }
 
   return <>{children}</>;
@@ -67,18 +93,17 @@ function AppRoutes() {
       <Route
         path="/"
         element={
-          user ? (
-            <Navigate
-              to={
-                user.role === 'rider'
-                  ? '/rider'
-                  : user.role === 'driver'
-                  ? '/driver'
-                  : '/admin'
-              }
-              replace
-            />
-          ) : (
+          user ? (() => {
+            const redirectTo = getHomePath(user.role);
+            console.log('[route] root redirect', {
+              redirectTo,
+              userId: user.id,
+              email: user.email,
+              profileRole: user.role,
+              jwtRole: user.jwtRole,
+            });
+            return <Navigate to={redirectTo} replace />;
+          })() : (
             <AuthPage />
           )
         }

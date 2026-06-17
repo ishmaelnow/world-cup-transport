@@ -8,13 +8,18 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { formatCurrency } from '../../lib/fare';
 import type { Database } from '../../lib/database.types';
-import { MapPin, User, Car, Clock, Phone, MessageSquare } from 'lucide-react';
+import { MapPin, User, Car, Clock, MessageSquare } from 'lucide-react';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { RideMap } from '../../components/RideMap';
 import { Chat } from '../../components/Chat';
 
 type Ride = Database['public']['Tables']['rides']['Row'];
 type DriverProfile = Database['public']['Tables']['driver_profiles']['Row'];
+type DriverProfileWithUser = DriverProfile & {
+  user?: {
+    full_name?: string | null;
+  };
+};
 
 export function ActiveRide() {
   const { rideId } = useParams<{ rideId: string }>();
@@ -436,7 +441,7 @@ export function ActiveRide() {
                   </div>
                   <div className="flex-1">
                     <h5 className="font-semibold text-lg">
-                      {(driver as any).user?.full_name || 'Driver'}
+                      {(driver as DriverProfileWithUser).user?.full_name || 'Driver'}
                     </h5>
                     <div className="flex items-center space-x-1 text-yellow-500">
                       <span>⭐</span>
@@ -592,10 +597,10 @@ export function ActiveRide() {
           </Button>
         )}
 
-        {showRatingModal && driver && (
+        {showRatingModal && driver && !hasRated && (
           <RatingModal
             title="Rate Your Driver"
-            subtitle={`How was your ride with ${(driver as any).user?.full_name || 'your driver'}?`}
+            subtitle={`How was your ride with ${(driver as DriverProfileWithUser).user?.full_name || 'your driver'}?`}
             onSubmit={handleRatingSubmit}
             onSkip={handleRatingSkip}
           />

@@ -5,7 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { formatCurrency } from '../../lib/fare';
 import type { Database } from '../../lib/database.types';
-import { MapPin, Calendar, DollarSign, Car, Star } from 'lucide-react';
+import { MapPin, Car, Star } from 'lucide-react';
 
 type Ride = Database['public']['Tables']['rides']['Row'];
 type DriverProfile = Database['public']['Tables']['driver_profiles']['Row'];
@@ -115,7 +115,7 @@ export function RideHistory() {
                           {ride.status.toUpperCase()}
                         </span>
                         <span className="text-sm text-gray-500">
-                          {new Date(ride.requested_at).toLocaleDateString()}
+                          {ride.requested_at ? new Date(ride.requested_at).toLocaleDateString() : ''}
                         </span>
                       </div>
 
@@ -180,8 +180,9 @@ export function RideHistory() {
                   <div>
                     <h3 className="text-2xl font-bold text-gray-900">Trip Receipt</h3>
                     <p className="text-gray-600">
-                      {new Date(selectedRide.requested_at).toLocaleDateString()}{' '}
-                      {new Date(selectedRide.requested_at).toLocaleTimeString()}
+                      {selectedRide.requested_at
+                        ? `${new Date(selectedRide.requested_at).toLocaleDateString()} ${new Date(selectedRide.requested_at).toLocaleTimeString()}`
+                        : ''}
                     </p>
                   </div>
                   <button
@@ -234,11 +235,11 @@ export function RideHistory() {
                           {selectedRide.driver_profile.vehicle_plate}
                         </span>
                       </div>
-                      {selectedRide.driver_profile.average_rating > 0 && (
+                      {(selectedRide.driver_profile.average_rating || 0) > 0 && (
                         <div className="flex items-center space-x-1 mt-2 text-yellow-500">
                           <Star size={16} fill="currentColor" />
                           <span className="font-medium">
-                            {selectedRide.driver_profile.average_rating.toFixed(1)}
+                            {(selectedRide.driver_profile.average_rating || 0).toFixed(1)}
                           </span>
                           <span className="text-gray-500 text-sm">
                             ({selectedRide.driver_profile.total_trips} trips)
@@ -257,17 +258,17 @@ export function RideHistory() {
                       <span>{formatCurrency(2.5)}</span>
                     </div>
                     <div className="flex justify-between text-gray-700">
-                      <span>Distance ({selectedRide.distance_miles.toFixed(2)} mi)</span>
+                      <span>Distance ({(selectedRide.distance_miles || 0).toFixed(2)} mi)</span>
                       <span>
                         {formatCurrency(
-                          selectedRide.distance_miles * 1.5
+                          (selectedRide.distance_miles || 0) * 1.5
                         )}
                       </span>
                     </div>
                     <div className="flex justify-between text-gray-700">
-                      <span>Time ({selectedRide.duration_minutes} min)</span>
+                      <span>Time ({selectedRide.duration_minutes || 0} min)</span>
                       <span>
-                        {formatCurrency(selectedRide.duration_minutes * 0.25)}
+                        {formatCurrency((selectedRide.duration_minutes || 0) * 0.25)}
                       </span>
                     </div>
                     <div className="border-t border-gray-300 pt-2 mt-2">

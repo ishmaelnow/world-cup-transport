@@ -13,6 +13,7 @@ import { RideMap } from '../../components/RideMap';
 import { Chat } from '../../components/Chat';
 
 type Ride = Database['public']['Tables']['rides']['Row'];
+type RideUpdate = Database['public']['Tables']['rides']['Update'];
 
 export function ActiveDriverRide() {
   const { rideId } = useParams<{ rideId: string }>();
@@ -103,7 +104,7 @@ export function ActiveDriverRide() {
 
     setUpdating(true);
     try {
-      const updates: any = { status: newStatus };
+      const updates: RideUpdate = { status: newStatus };
 
       if (newStatus === 'arriving') {
         updates.accepted_at = new Date().toISOString();
@@ -155,22 +156,24 @@ export function ActiveDriverRide() {
               console.error('Failed to capture payment:', errorData.error || `Status ${paymentResponse.status}`);
             }
           }
-        } catch (err: any) {
-          console.error('Connection error capturing payment:', err.message || err);
+        } catch (err) {
+          console.error('Connection error capturing payment:', err instanceof Error ? err.message : err);
           console.error('Check internet connection and Edge Functions deployment.');
         }
 
-        const { data: profile } = await supabase
-          .from('driver_profiles')
-          .select('total_trips')
-          .eq('user_id', user?.id)
-          .maybeSingle();
-
-        if (profile) {
-          await supabase
+        if (user) {
+          const { data: profile } = await supabase
             .from('driver_profiles')
-            .update({ total_trips: (profile.total_trips || 0) + 1 })
-            .eq('user_id', user?.id);
+            .select('total_trips')
+            .eq('user_id', user.id)
+            .maybeSingle();
+
+          if (profile) {
+            await supabase
+              .from('driver_profiles')
+              .update({ total_trips: (profile.total_trips || 0) + 1 })
+              .eq('user_id', user.id);
+          }
         }
 
         setShowRatingModal(true);
@@ -348,7 +351,7 @@ export function ActiveDriverRide() {
             <div className="text-right">
               <div className="text-sm text-gray-600">Distance</div>
               <div className="text-xl font-semibold text-gray-700">
-                {ride.distance_miles.toFixed(1)} mi
+                {(ride.distance_miles || 0).toFixed(1)} mi
               </div>
             </div>
           </div>

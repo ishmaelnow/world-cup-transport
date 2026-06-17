@@ -7,9 +7,7 @@ export async function sendRideStatusNotification(
   riderId: string,
   driverId: string | null,
   rideId: string,
-  status: RideStatus,
-  pickupAddress?: string,
-  dropoffAddress?: string
+  status: RideStatus
 ) {
   switch (status) {
     case 'matching':
