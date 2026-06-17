@@ -8,7 +8,7 @@ import type { UserRole } from '../lib/database.types';
 import { PrivacyPolicy } from './PrivacyPolicy';
 import { Home } from '../components/Home';
 
-export function AuthPage() {
+export function AuthPage({ startupError }: { startupError?: string | null }) {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -111,6 +111,12 @@ export function AuthPage() {
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
+                {startupError && (
+                  <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-lg text-sm">
+                    {startupError}
+                  </div>
+                )}
+
                 {!isLogin && (
                   <>
                     <Input

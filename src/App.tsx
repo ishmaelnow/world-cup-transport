@@ -78,7 +78,7 @@ function ProtectedRoute({
 }
 
 function AppRoutes() {
-  const { user, loading } = useAuth();
+  const { user, loading, authError } = useAuth();
 
   if (loading) {
     return (
@@ -104,7 +104,7 @@ function AppRoutes() {
             });
             return <Navigate to={redirectTo} replace />;
           })() : (
-            <AuthPage />
+            <AuthPage startupError={authError} />
           )
         }
       />
