@@ -448,6 +448,7 @@ export type Database = {
           id: string
           phone: string | null
           role: string
+          stripe_customer_id: string | null
           total_rides: number | null
           updated_at: string | null
         }
@@ -458,6 +459,7 @@ export type Database = {
           id: string
           phone?: string | null
           role: string
+          stripe_customer_id?: string | null
           total_rides?: number | null
           updated_at?: string | null
         }
@@ -468,6 +470,7 @@ export type Database = {
           id?: string
           phone?: string | null
           role?: string
+          stripe_customer_id?: string | null
           total_rides?: number | null
           updated_at?: string | null
         }

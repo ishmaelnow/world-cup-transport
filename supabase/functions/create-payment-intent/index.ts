@@ -9,6 +9,73 @@ const corsHeaders = {
 
 const PLATFORM_FEE_PERCENTAGE = 0.20;
 
+async function getOrCreateStripeCustomer(
+  stripe: Stripe,
+  supabase: ReturnType<typeof createClient>,
+  rider: Record<string, unknown>
+) {
+  const riderId = String(rider.id);
+  const storedCustomerId = typeof rider.stripe_customer_id === 'string'
+    ? rider.stripe_customer_id
+    : null;
+
+  if (storedCustomerId) {
+    try {
+      const existingCustomer = await stripe.customers.retrieve(storedCustomerId);
+      if (!('deleted' in existingCustomer && existingCustomer.deleted)) {
+        return existingCustomer;
+      }
+    } catch (error) {
+      console.warn('Stored Stripe customer could not be retrieved; creating a new one', {
+        riderId,
+        stripeCustomerId: storedCustomerId,
+        error: error instanceof Error ? error.message : error,
+      });
+    }
+  }
+
+  const customer = await stripe.customers.create({
+    name: typeof rider.full_name === 'string' ? rider.full_name : undefined,
+    metadata: {
+      user_id: riderId,
+    },
+  });
+
+  const { error: updateError } = await supabase
+    .from('profiles')
+    .update({ stripe_customer_id: customer.id })
+    .eq('id', riderId);
+
+  if (updateError) {
+    throw new Error(`Failed to save Stripe customer: ${updateError.message}`);
+  }
+
+  return customer;
+}
+
+async function ensurePaymentMethodAttachedToCustomer(
+  stripe: Stripe,
+  paymentMethodId: string,
+  customerId: string
+) {
+  const paymentMethod = await stripe.paymentMethods.retrieve(paymentMethodId);
+  const paymentMethodCustomerId = typeof paymentMethod.customer === 'string'
+    ? paymentMethod.customer
+    : paymentMethod.customer?.id;
+
+  if (paymentMethodCustomerId && paymentMethodCustomerId !== customerId) {
+    throw new Error('Payment method belongs to a different Stripe customer.');
+  }
+
+  if (!paymentMethodCustomerId) {
+    await stripe.paymentMethods.attach(paymentMethodId, {
+      customer: customerId,
+    });
+  }
+
+  return paymentMethod;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, {
@@ -87,6 +154,19 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    if (authData.user && authData.user.id !== ride.rider_id) {
+      return new Response(
+        JSON.stringify({ error: 'Authenticated user does not own this ride' }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    const customer = await getOrCreateStripeCustomer(stripe, supabase, rider);
+    await ensurePaymentMethodAttachedToCustomer(stripe, paymentMethodId, customer.id);
+
     const amountInCents = Math.round(ride.fare_estimate * 100);
     const platformFee = Math.round(ride.fare_estimate * PLATFORM_FEE_PERCENTAGE * 100);
     const driverEarnings = amountInCents - platformFee;
@@ -95,8 +175,10 @@ Deno.serve(async (req: Request) => {
       amount: amountInCents,
       currency: 'usd',
       payment_method: paymentMethodId,
-      customer: rider.stripe_customer_id || undefined,
+      customer: customer.id,
       capture_method: 'manual',
+      confirm: true,
+      off_session: true,
       description: `World Cup Transport Ride ${rideId}`,
       metadata: {
         ride_id: rideId,
@@ -158,8 +240,19 @@ Deno.serve(async (req: Request) => {
   } catch (error) {
     console.error('Error in create-payment-intent:', error);
     const message = error instanceof Error ? error.message : 'Internal server error';
+    const code = typeof error === 'object' && error !== null && 'code' in error
+      ? String((error as { code?: unknown }).code)
+      : undefined;
+    const type = typeof error === 'object' && error !== null && 'type' in error
+      ? String((error as { type?: unknown }).type)
+      : undefined;
+
     return new Response(
-      JSON.stringify({ error: message }),
+      JSON.stringify({
+        error: message,
+        code,
+        type,
+      }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
