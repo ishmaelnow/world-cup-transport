@@ -1,0 +1,156 @@
+# Codemagic workflows for the World Cup Transport Capacitor mobile app.
+# Select one of these workflows in Codemagic. You do not need to edit this file
+# to switch between Android debug, Android release, iOS development, or iOS release builds.
+
+workflows:
+  android-debug-apk:
+    name: Android Debug APK
+    max_build_duration: 60
+    instance_type: linux_x2
+    environment:
+      groups:
+        - worldcuptransport_app
+      vars:
+        PACKAGE_NAME: com.worldcuptransport.app
+      node: 20.19.0
+      java: 17
+    cache: &android_cache
+      cache_paths:
+        - $CM_BUILD_DIR/node_modules
+        - ~/.npm
+        - ~/.gradle/caches
+        - ~/.gradle/wrapper
+    scripts:
+      - &install_dependencies
+        name: Install dependencies
+        script: npm ci
+      - &build_web
+        name: Build web app
+        script: npm run build
+      - &sync_android
+        name: Sync Capacitor Android project
+        script: npx cap sync android
+      - &android_local_properties
+        name: Configure Android SDK path
+        script: echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/android/local.properties"
+      - name: Build Android debug APK
+        script: |
+          cd android
+          ./gradlew assembleDebug
+    artifacts:
+      - android/app/build/outputs/apk/debug/*.apk
+
+  android-release-aab:
+    name: Android Release AAB
+    max_build_duration: 60
+    instance_type: linux_x2
+    environment:
+      groups:
+        - worldcuptransport_app
+        - worldcuptransport_android_signing
+      vars:
+        PACKAGE_NAME: com.worldcuptransport.app
+      node: 20.19.0
+      java: 17
+    cache: *android_cache
+    scripts:
+      - *install_dependencies
+      - *build_web
+      - *sync_android
+      - *android_local_properties
+      - name: Decode Android release keystore
+        script: |
+          : "${ANDROID_KEYSTORE_BASE64:?Set ANDROID_KEYSTORE_BASE64 in worldcuptransport_android_signing}"
+          : "${ANDROID_KEYSTORE_PASSWORD:?Set ANDROID_KEYSTORE_PASSWORD in worldcuptransport_android_signing}"
+          : "${ANDROID_KEY_ALIAS:?Set ANDROID_KEY_ALIAS in worldcuptransport_android_signing}"
+          : "${ANDROID_KEY_PASSWORD:?Set ANDROID_KEY_PASSWORD in worldcuptransport_android_signing}"
+
+          export CM_KEYSTORE_PATH="$CM_BUILD_DIR/android/app/release.keystore"
+          export CM_KEYSTORE_PASSWORD="$ANDROID_KEYSTORE_PASSWORD"
+          export CM_KEY_ALIAS="$ANDROID_KEY_ALIAS"
+          export CM_KEY_PASSWORD="$ANDROID_KEY_PASSWORD"
+
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$CM_KEYSTORE_PATH"
+          echo "CM_KEYSTORE_PATH=$CM_KEYSTORE_PATH" >> "$CM_ENV"
+          echo "CM_KEYSTORE_PASSWORD=$CM_KEYSTORE_PASSWORD" >> "$CM_ENV"
+          echo "CM_KEY_ALIAS=$CM_KEY_ALIAS" >> "$CM_ENV"
+          echo "CM_KEY_PASSWORD=$CM_KEY_PASSWORD" >> "$CM_ENV"
+      - name: Build Android release AAB
+        script: |
+          cd android
+          ./gradlew bundleRelease
+    artifacts:
+      - android/app/build/outputs/bundle/release/*.aab
+
+  ios-debug-development:
+    name: iOS Debug/Development
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      groups:
+        - worldcuptransport_app
+        - worldcuptransport_ios_signing
+      vars: &ios_vars
+        BUNDLE_ID: com.worldcuptransport.app
+        XCODE_WORKSPACE: ios/App/App.xcworkspace
+        XCODE_SCHEME: App
+      node: 20.19.0
+      xcode: latest
+      cocoapods: default
+    cache: &ios_cache
+      cache_paths:
+        - $CM_BUILD_DIR/node_modules
+        - ~/.npm
+        - ios/App/Pods
+    scripts:
+      - *install_dependencies
+      - *build_web
+      - &sync_ios
+        name: Sync Capacitor iOS project
+        script: npx cap sync ios
+      - name: Set up iOS development signing
+        script: |
+          keychain initialize
+          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_DEVELOPMENT --create
+          keychain add-certificates
+          xcode-project use-profiles
+      - name: Build iOS development IPA
+        script: |
+          xcode-project build-ipa \
+            --workspace "$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+
+  ios-release-app-store:
+    name: iOS Release/App Store
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      groups:
+        - worldcuptransport_app
+        - worldcuptransport_ios_signing
+      vars: *ios_vars
+      node: 20.19.0
+      xcode: latest
+      cocoapods: default
+    cache: *ios_cache
+    scripts:
+      - *install_dependencies
+      - *build_web
+      - *sync_ios
+      - name: Set up iOS App Store signing
+        script: |
+          keychain initialize
+          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create
+          keychain add-certificates
+          xcode-project use-profiles
+      - name: Build iOS App Store IPA
+        script: |
+          xcode-project build-ipa \
+            --workspace "$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log

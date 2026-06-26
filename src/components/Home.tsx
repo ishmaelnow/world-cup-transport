@@ -1,3 +1,5 @@
+import { Clock, MapPin, Phone } from 'lucide-react';
+
 export function Home() {
   const features = [
     { title: "Quick and Easy Booking", description: "Book your ride in just a few clicks." },
@@ -21,6 +23,31 @@ export function Home() {
     { category: "Minimum Fare (DFW Airport to Off-Airport)", price: "$27.00" },
   ];
 
+  const contactDetails = [
+    {
+      icon: Phone,
+      label: "Customer Support",
+      value: "469-835-7520",
+      href: "tel:4698357520",
+    },
+    {
+      icon: Phone,
+      label: "Customer Support",
+      value: "469-268-8239",
+      href: "tel:4692688239",
+    },
+    {
+      icon: MapPin,
+      label: "Service Area",
+      value: "Dallas/Fort Worth area",
+    },
+    {
+      icon: Clock,
+      label: "Availability",
+      value: "24/7 ride support",
+    },
+  ];
+
   return (
     <div className="space-y-12 py-8">
       {/* Features Section */}
@@ -36,6 +63,37 @@ export function Home() {
               <p className="text-gray-600">{feature.description}</p>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* Contact Section */}
+      <section>
+        <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">Contact Us</h2>
+        <div className="bg-white/92 backdrop-blur-md rounded-lg shadow-lg shadow-slate-900/10 border border-white/75 p-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {contactDetails.map((detail) => {
+              const Icon = detail.icon;
+              const value = detail.href ? (
+                <a className="text-blue-600 hover:text-blue-800 hover:underline" href={detail.href}>
+                  {detail.value}
+                </a>
+              ) : (
+                detail.value
+              );
+
+              return (
+                <div key={detail.label} className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                    <Icon size={20} aria-hidden="true" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900">{detail.label}</h3>
+                    <p className="mt-1 text-sm text-gray-600">{value}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </section>
 
