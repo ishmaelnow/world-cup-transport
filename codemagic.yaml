@@ -13,7 +13,7 @@ workflows:
       vars:
         PACKAGE_NAME: com.worldcuptransport.app
       node: 20.19.0
-      java: 17
+      java: 21
     cache: &android_cache
       cache_paths:
         - $CM_BUILD_DIR/node_modules
@@ -54,7 +54,7 @@ workflows:
       vars:
         PACKAGE_NAME: com.worldcuptransport.app
       node: 20.19.0
-      java: 17
+      java: 21
     cache: *android_cache
     scripts:
       - *install_dependencies
